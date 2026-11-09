@@ -1,0 +1,8 @@
+# VSCE negated patterns override all ignores, regardless of line order.
+# Allow only release assets; never include demo caches or platform binaries.
+**/*
+!dist/extension.cjs
+!dist/{ui.html,ui.js,style.css,vscode.css,agent.mjs,client.mjs,tools.mjs,types.mjs}
+!package.json
+!README.md
+!LICENSE

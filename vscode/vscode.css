@@ -1,0 +1,38 @@
+:root {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+}
+body { padding: 0; }
+aside { background: var(--vscode-sideBar-background); border-color: var(--vscode-panel-border); }
+.topbar, .code-card, .secondary, dialog, .data-grid > div { background: var(--vscode-editor-background); color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.project, .filename, .prototype, .welcome-mark, .choice:hover, .range pre, .agent-content blockquote { background: var(--vscode-editorWidget-background); border-color: var(--vscode-panel-border); }
+nav button.selected, .steps button.active span { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+button, label, .project small, nav button, nav small, #files button, .new-path, aside footer button, aside footer small,
+.section-label, .brand small, .topbar, .eyebrow, .path-header p, .steps button, .caption, .filename, .filename small,
+.reason p, .code-card > footer button, .detail-heading > div, .detail-heading button, .data-controls small,
+.data-controls button, .data-grid h4, #origin, .note small, .note p, #note-form small, .workspace-footer,
+.workspace-footer span:first-child, .welcome, .welcome p, .welcome > button:last-child, .empty,
+dialog header p, #close-modal, .picker-search button, .choice strong, .choice small, .choice p, .range pre,
+.agent-content p, .agent-content h3, .agent-content blockquote, .agent-content small { color: var(--vscode-descriptionForeground); }
+h1, h2, h3, .project strong, .note strong, .data-grid pre { color: var(--vscode-foreground); }
+.primary { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; }
+.primary:hover { background: var(--vscode-button-hoverBackground); }
+input, textarea, select, .data-controls select { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border-color: var(--vscode-input-border, var(--vscode-panel-border)); }
+input::placeholder, textarea::placeholder { color: var(--vscode-input-placeholderForeground); }
+.symbol, .code, .agent-content pre { background: var(--vscode-editor-background); color: var(--vscode-editor-foreground); }
+pre, code, .symbol { font-family: var(--vscode-editor-font-family); }
+.line.focus { background: var(--vscode-editor-rangeHighlightBackground, var(--vscode-editor-selectionHighlightBackground)); border-left-color: var(--vscode-focusBorder); }
+.line-number { color: var(--vscode-editorLineNumber-foreground); }
+.symbol button, .detail-heading button.active, .steps button.active { color: var(--vscode-textLink-foreground); }
+.code-card.active { border-color: var(--vscode-focusBorder); box-shadow: none; }
+.badge.source { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+.badge.warning, #revision-warning, #warnings p { background: var(--vscode-inputValidation-warningBackground); color: var(--vscode-foreground); }
+#error, .source-error { background: var(--vscode-inputValidation-errorBackground); color: var(--vscode-errorForeground); }
+.steps, #detail, .detail-heading, .code-card > footer, .filename, aside footer, dialog > header,
+.picker-columns, .picker-columns > div:first-child, .data-grid h4 { border-color: var(--vscode-panel-border); }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline-color: var(--vscode-focusBorder); }
+.code-card { min-width: min(430px, calc(100vw - 40px)); }
+.source-token { cursor: context-menu; }
+.source-token:hover { text-decoration: underline; text-decoration-color: var(--vscode-textLink-foreground); }

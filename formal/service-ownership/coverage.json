@@ -1,0 +1,107 @@
+{
+  "syncCommit": null,
+  "syncCommitReason": "Actual parent HEAD is unborn. Reviewed source SHA-256 values are the synchronization record.",
+  "privateSnapshotSha": "903acefa0cdfc7569aa017ca7d85449e8ff11865",
+  "privateSnapshotIsAppCommit": false,
+  "sources": [
+    {
+      "file": "service.mts",
+      "sha256": "2be1ca9c5e4fd81fd5bd140e0716c0d243eafc705ce77e6726b89d2978fb929d",
+      "functions": ["startProjectService", "remote", "handle", "stopAndDrain"]
+    },
+    {
+      "file": "service-ownership.mts",
+      "sha256": "03312d97e3eaece58465f74e0f53b542506a9a094da1ae2630fcc8cede02f20d",
+      "functions": [
+        "claimProjectService",
+        "discover",
+        "readConnection",
+        "same",
+        "dead",
+        "release",
+        "claim publish/assertWritable/close"
+      ]
+    },
+    {
+      "file": "workspace.mts",
+      "sha256": "7234e399dc8bbefef32eeceaee9b6cb1d6d4d58a22f09040281da4931ca65ac4",
+      "functions": [
+        "openWorkspace",
+        "save",
+        "invoke save_walkthrough branch",
+        "applyPendingNoteUpdates (startup placement only)"
+      ]
+    }
+  ],
+  "actionCoverage": {
+    "BeginStart": "Canonical-root start enters claimProjectService. Only premature-snapshot scratch mutation loads openWorkspace here.",
+    "ReadDiscovery": "discover reads connection snapshot and identity without writable workspace. Recheck is a separate discover after awaited exclusive bind.",
+    "AcquireReservation": "Await net.Server.listen on deterministic root-derived loopback address with exclusive true. Reservation lasts until drained owner release.",
+    "ReservationBusy": "EADDRINUSE waits 25ms and repeats discovery. No reservation stealing or new writable snapshot.",
+    "ReservationTimeout": "Bounded claim deadline rejects. Model abstracts elapsed time nondeterministically; no fairness or eventual attachment claim.",
+    "AttachToOwner": "Healthy authenticated same-root fetch plus unchanged reread returns attached. Under-reservation attachment separately releases the unused reservation.",
+    "ProbeRecordChanged": "After a pending fetch, discover compares text and inode/time identity. Removed or changed record repeats discovery before PID liveness interpretation.",
+    "ProbeFailedLivePid": "Failed unchanged-record probe with still-live or unknown PID rejects. All modeled participant PIDs remain alive even after service close.",
+    "ReleaseNonOwner": "Release reservation after recheck attachment or failed recheck; no writable workspace is returned.",
+    "LoadWorkspace": "Owner branch opens current disk snapshot only after awaited claim, then applies pending maintenance. Mutant moves this exact load before claim.",
+    "ListenerReady": "Actual HTTP listen callback resolves readiness promise. Publication is a subsequent continuation.",
+    "CheckPublication": "publish compares expected record twice around exclusive temporary-file write. Final comparison precedes atomic rename. Different OS processes can interleave between comparison and rename without reservation.",
+    "PublicationRejected": "Unexpected record replacement before final publication comparison rejects and enters the same stop-and-drain cleanup.",
+    "PublishConnection": "Atomic temporary-file rename publishes token/root/port/pid and admits writes. Distinct from final comparison across OS processes.",
+    "BeginSave": "Authenticated HTTP handler starts awaiting request body; one pending new-path request per caller.",
+    "SaveWalkthrough": "Body finishes, assertWritable checks published phase immediately before synchronous workspace.invoke/save. Atomic whole-snapshot disk replacement and successful HTTP acknowledgement are abstracted as one successful-save action.",
+    "RejectPending": "Close phase fence or destroyed incomplete socket rejects a pending body without accepted write.",
+    "CloseAdmission": "claim.close synchronously switches phase to closing and caches an idempotent closing promise.",
+    "StopHttp": "stopAndDrain stops HTTP admission and destroys tracked sockets. Its synchronous portion follows CloseAdmission in the same process turn; splitting conservatively allows other processes to run.",
+    "DrainHandlers": "Await HTTP closure and all tracked handler promises. No demo children in model. No release on failed drain.",
+    "RemoveConnection": "After drainage compare parse(readConnection(root))?.token === token before unlink. Token identities, not PID or port, determine ownership.",
+    "ReleaseReservation": "Await reservation.close last; only then closed. Process death and crash recovery are not modeled.",
+    "CloseAttached": "Remote attached close does not stop owner or edit connection.",
+    "ReplaceWithForeignRecord": "One bounded environment action replaces a published active-owner record with a foreign token before close admission. This is not a protocol-respecting second writer. No hostile concurrent filesystem interference inside modeled synchronous cleanup.",
+    "Done": "All callers closed or blocked, with no pending body, is a legitimate terminal state with stuttering. Busy discovery cycles are waits, not liveness proofs.",
+    "ProtocolOnlyView": "Optional statechart-only constraint. Stop exploration after the bounded external foreign replacement; never used by the main safety check.",
+    "FailedProbeFreshnessSchedule": "Supplementary action-constrained check requires the first accepted path save while another caller probes that owner. Main checks remain unconstrained. A violating mutant trace must include ProbeRecordChanged."
+  },
+  "astCorrespondence": {
+    "ExclusiveReservation": "Derive from actual awaited reservation.listen options and release implementation. No-op mutation changes both await and release of the unbound server.",
+    "FreshSnapshot": "Derive from the actual openWorkspace declaration position and block ancestry relative to awaited claimProjectService.",
+    "RequireOwnerToken": "Derive from the actual helper if condition directly guarding fs.unlinkSync(connection).",
+    "reviewedStructure": "AST also checks both discovery calls, failed-probe identity reread before live-PID refusal, listen-before-publish, double publication check, close/admission/drain/unlink/release order, immediate generic mutation fence, and synchronous actual workspace save."
+  },
+  "scope": {
+    "participants": 2,
+    "startsPerCaller": 1,
+    "uniqueNewPathsPerCaller": 1,
+    "pendingRequestsPerCaller": 1,
+    "foreignReplacements": 1,
+    "multipleProcesses": "Two same-host protocol participants; atomic individual disk writes and OS reservation exclusion assumed, not proved.",
+    "network": "Healthy loopback except a probed owner may close before its request completes.",
+    "excluded": [
+      "crashes and power loss",
+      "partial or failed disk writes",
+      "cross-host and network filesystems",
+      "reservation hash collisions and unrelated port occupancy",
+      "legacy concurrent starters",
+      "demo mode and child processes",
+      "notes/runs/content semantics",
+      "deletions and path updates",
+      "unbounded restarts, callers, paths",
+      "hostile filesystem replacement during synchronous cleanup",
+      "liveness and fairness"
+    ]
+  },
+  "sourceReview": {
+    "oldReviewedServiceSha256": "243d8863d88ecf6e06df2e3b04133215f4a9119ee83131a4e88d520b2ca89646",
+    "initialMirroredServiceSha256": "3be65ca27c5a2607fa5b12629947e1249006a0e517eee3ea7e3269f44f4c3e22",
+    "classification": "Verification drift. Service moved discovery and ownership into a new helper, added a lifetime reservation and write-admission/drain lifecycle, and moved workspace loading after claim. Safety promises did not change.",
+    "latestOwnerPolish": "Copied and reread the three authorized mirrored files. The later service change waits for Go child close instead of exit/error and reports process errors. No effect on this non-demo finite model. Demo child lifecycle remains excluded.",
+    "workspace": "Parent reviewed the combined annotation, callback-role and read-only source-usage changes from ab392f0162d3cb33767ddaa233e36fee5c96a3643f8c77a6312c4d714c5a58bf. Workspace loading and the synchronous save/write fence remain unchanged. New annotation operations synchronously clone/replace one current path and preserve other paths, with local rollback. Source usage is read-only. These content/update semantics remain outside the finite new-path model and have separate runtime tests. The maintained decision boundary is recorded in actionCoverage, astCorrespondence and scope; temporary working reports have been removed.",
+    "history": "Only the private baseline commit and working source diff are available. No actual parent application commit exists.",
+    "notePresentation": "Reviewed optional variableName/archived metadata and shared NoteRevision snapshots. The exact workspace diff and ownership AST correspondence were reviewed; retained source fingerprints and action mappings record the synchronization boundary, while temporary reports are disposable. No ownership, synchronous save or deferred-write change; content/presentation semantics remain excluded from the finite model."
+  },
+  "buildMirror": {
+    "file": "scripts/build-extension.mjs",
+    "sha256": "6d6f97aecd1a465f67681aa766f31a739011bafdd7908d2d74b4262ab98f42b2",
+    "review": "Normal build emits the ownership, annotations and source-usage helpers. The scratch replay compiles and imports its own actual ownership helper and workspace copies; unmutated supporting modules come from the normal compiled build."
+  }
+}

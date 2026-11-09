@@ -1,0 +1,120 @@
+{
+  "name": "codepath-prototype",
+  "version": "0.7.4",
+  "displayName": "Codepath",
+  "description": "Source walkthroughs for one behavior at a time, inside VS Code.",
+  "publisher": "codepath-local",
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.cjs",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24",
+    "vscode": "^1.99.0"
+  },
+  "scripts": {
+    "prestart": "npm run compile",
+    "start": "node server.mjs",
+    "predemo:go": "npm run compile",
+    "demo:go": "node server.mjs --backend go",
+    "pretest": "npm run compile",
+    "test": "node --test tests/*.test.mjs examples/checkout/api/service.test.mjs",
+    "compile": "node scripts/build-extension.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.ui.json",
+    "vscode:prepublish": "npm run typecheck && npm run compile",
+    "package:extension": "vsce package --no-dependencies --allow-missing-repository --out codepath.vsix",
+    "test:vscode": "npm run compile && node scripts/test-vscode.mjs",
+    "test:browser": "npm run compile && node scripts/test-browser.mjs",
+    "test:reading-context": "npm run compile && node scripts/test-reading-context.mjs",
+    "test:source-project": "npm run compile && node scripts/test-source-project.mjs",
+    "test:reading-context:vscode": "npm run compile && node scripts/test-reading-context.mjs --desktop",
+    "test:ui-refactor": "npm run compile && node scripts/test-ui-refactor.mjs",
+    "test:annotations": "npm run compile && node scripts/test-annotations.mjs",
+    "test:variables": "npm run compile && node scripts/test-variables.mjs",
+    "test:reading-ui": "npm run compile && node scripts/test-reading-ui.mjs",
+    "test:block-notes": "npm run compile && node scripts/test-block-notes.mjs",
+    "test:source-usages": "npm run compile && node --test tests/source-usage.test.mjs",
+    "test:source-syntax": "npm run compile && node scripts/test-source-syntax.mjs",
+    "test:callback-roles": "npm run compile && node scripts/test-callback-roles.mjs",
+    "test:dialog-races": "npm run compile && node scripts/test-dialog-races.mjs",
+    "test:learning-features": "npm run compile && node scripts/test-annotations.mjs && node scripts/test-variables.mjs && node scripts/test-reading-ui.mjs && node scripts/test-block-notes.mjs && node scripts/test-source-syntax.mjs && node scripts/test-callback-roles.mjs && node scripts/test-dialog-races.mjs",
+    "test:service:go": "npm run compile && node --test tests/fixtures/service-go-lifecycle.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint:go": "cd examples/checkout/go && go vet ./...",
+    "format:go": "gofmt -w examples/checkout/go",
+    "verify:formal": "npm run compile && node scripts/formal/verify-service-ownership.mjs",
+    "verify:formal:mutation": "npm run compile && node scripts/formal/verify-service-ownership.mjs --mutation-check",
+    "prepare": "cd .. && husky codepath-prototype/.husky"
+  },
+  "activationEvents": [],
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "codepath.open",
+        "title": "Codepath: Open Walkthroughs"
+      },
+      {
+        "command": "codepath.startFromSelection",
+        "title": "Codepath: Start Walkthrough from Selection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codepath.startFromSelection",
+          "when": "resourceScheme == file && isWorkspaceTrusted",
+          "group": "navigation@20"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "esbuild": "0.25.12",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "refractor": "5.0.0",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "11.0.5"
+    },
+    "eslint": {
+      "minimatch": "11.0.5"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/vscode": "1.99.0",
+    "@vscode/vsce": "4.1.0",
+    "eslint": "10.14.0",
+    "globals": "17.14.0",
+    "husky": "9.1.7",
+    "lint-staged": "16.4.0",
+    "playwright-core": "1.65.0",
+    "prettier": "3.9.10",
+    "typescript-eslint": "8.72.1"
+  }
+}

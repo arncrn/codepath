@@ -1,0 +1,28 @@
+# Dependencies and generated builds (keep local working installations).
+node_modules/
+dist/
+coverage/
+.husky/_/
+*.vsix
+
+# Local data, credentials and generated diagnostics.
+.codepaths/
+.cache/
+.agent-output/
+.DS_Store
+*.log
+*.tmp
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Reproducible formal output, not the maintained model/config/coverage sources.
+/formal/service-ownership/statecharts/
+/formal/service-ownership/evidence/
+/formal/service-ownership/chart.mmd
+/formal/service-ownership/statechart-report.md
+
+# Local agent/session reports; retain project docs such as README and TODO_LIST.
+/HANDOFF.md
+/TODO_ASSESSMENT.md

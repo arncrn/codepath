@@ -1,0 +1,11 @@
+**/node_modules/**
+**/dist/**
+**/.cache/**
+**/.codepaths/**
+**/.husky/_/**
+**/coverage/**
+**/vendor/**
+**/build/**
+**/*.vsix
+**/package-lock.json
+**/go.sum

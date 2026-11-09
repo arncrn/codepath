@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "verbatimModuleSyntax": true,
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "types": ["node", "vscode"],
+    "lib": ["ES2023"]
+  },
+  "include": ["*.mts", "vscode/*.mts", "tests/type-contracts.mts"],
+  "exclude": ["dist", "node_modules", ".cache", ".codepaths"]
+}

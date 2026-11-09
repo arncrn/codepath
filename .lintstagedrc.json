@@ -1,0 +1,8 @@
+{
+  "*.{js,mjs,cjs,jsx,ts,tsx,mts,cts}": [
+    "eslint --max-warnings=0 --no-warn-ignored",
+    "prettier --write"
+  ],
+  "*.go": "gofmt -w",
+  "!(*.{js,mjs,cjs,jsx,ts,tsx,mts,cts,go})": "prettier --ignore-unknown --write"
+}
