@@ -17,6 +17,12 @@ assert.ok(
   "Unknown verification argument."
 );
 const sources = reviewedSource(projectRoot);
+const synchronization = JSON.parse(
+  fs.readFileSync(
+    path.join(projectRoot, "formal/service-ownership/coverage.json"),
+    "utf8"
+  )
+);
 const tool = await getTlc(projectRoot);
 const output = path.join(
   projectRoot,
@@ -158,9 +164,9 @@ if (mutationCheck) {
 }
 const summary = {
   tool: { release: tool.version, checker: baseline.results[0].checkerVersion },
-  syncCommit: null,
-  privateSnapshotSha: "903acefa0cdfc7569aa017ca7d85449e8ff11865",
-  privateSnapshotIsAppCommit: false,
+  syncCommit: synchronization.syncCommit,
+  privateSnapshotSha: synchronization.privateSnapshotSha,
+  privateSnapshotIsAppCommit: synchronization.privateSnapshotIsAppCommit,
   mode: mutationCheck
     ? "scratch-only sensitivity checks"
     : "bounded safety and actual-source agreement",

@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { resolve, follow, hash } from "./indexer.mjs";
 import { createSourceProject } from "./source-project.mjs";
+import { validateWalkthrough } from "./walkthrough-validation.mjs";
 import { resolveReference } from "./references.mjs";
 import { buildSourceUsageIndex } from "./source-usage.mjs";
 import type {
@@ -34,6 +35,7 @@ type Input = Partial<{
   endLine: number;
   query: string;
   cursor: string;
+  notApplicable: unknown;
   source: SourceRef;
   line: number;
   column: number;
@@ -132,7 +134,11 @@ export function openWorkspace(root: string) {
       root,
       project: path.basename(root),
       revision: state.revision,
-      capabilities: { notePresentation: true, onDemandSource: true },
+      capabilities: {
+        notePresentation: true,
+        onDemandSource: true,
+        authoringValidation: true,
+      },
       index: {
         ...sources.snapshot(walkthroughId !== undefined),
         warnings: [
@@ -314,6 +320,14 @@ export function openWorkspace(root: string) {
     if (name === "resolve_reference")
       return resolveReference(root, index, a as ToolArgs["resolve_reference"]);
     if (name === "get_walkthrough") return hydrate(get(a.id));
+    if (name === "validate_walkthrough") {
+      const walk = get(a.walkthroughId);
+      need(
+        a.expectedRevision === walk.revision,
+        "Walkthrough changed. Read it again before checking authoring readiness."
+      );
+      return validateWalkthrough(hydrate(walk), a.notApplicable);
+    }
     if (name === "source_usages")
       return buildSourceUsageIndex(root, index, state.paths).forWalkthrough(
         a.walkthroughId

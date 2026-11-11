@@ -177,6 +177,18 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - The full workflow needs durable line anchors, a review batch, agent transport, replies/status, source-version checks, and safe proposed-edit preview/application with explicit approval and undo. Discussion-only submission is smaller than adding code changes too.
   - Shares substantial infrastructure with code review, AI conversations and code editing above; it is not an additional independent system.
 
+- [ ] ticket-26. Support Markdown in Notes and Variables.
+  - blocked by: none.
+  - Render Markdown in both explanation areas while preserving stored text, source attachments and editing behavior.
+
+- [ ] ticket-27. Show function context at the top of each card.
+  - blocked by: none.
+  - Add a compact indicator identifying the function associated with the selected code reference.
+
+- [ ] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
+  - blocked by: none.
+  - Show a Mermaid diagram representing the walkthrough’s flow in a dedicated tab.
+
 ## Effort and priority summary
 
 - **Best early learning value:** rewrite the current explanations (**4/10**), add the short architecture orientation (**2/10**), and tighten highlighted ranges (**3/10**).

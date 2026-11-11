@@ -14,6 +14,7 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
   let posts = 0,
     capability,
     sourceCapability,
+    authoringCapability,
     reportedRoot = fs.realpathSync(root);
   const server = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
@@ -28,6 +29,7 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
                 capabilities: {
                   notePresentation: capability,
                   onDemandSource: sourceCapability,
+                  authoringValidation: authoringCapability,
                 },
               }),
         })
@@ -73,7 +75,23 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
         /No source request was sent/
       );
   sourceCapability = true;
+  for (authoringCapability of [undefined, false, "true"])
+    await assert.rejects(
+      callTool(root, "validate_walkthrough", {
+        walkthroughId: "test",
+        expectedRevision: 1,
+      }),
+      /No readiness result was reported/
+    );
+  authoringCapability = true;
   reportedRoot = "/different-project";
+  await assert.rejects(
+    callTool(root, "validate_walkthrough", {
+      walkthroughId: "test",
+      expectedRevision: 1,
+    }),
+    /No readiness result was reported/
+  );
   await assert.rejects(
     callTool(root, "inspect_source", { file: "flow.ts" }),
     /No source request was sent/

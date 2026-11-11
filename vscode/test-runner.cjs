@@ -39,7 +39,14 @@ exports.run=async()=>{
   assert.equal(topLevel.steps[0].source.endLine,5);
   await vscode.commands.executeCommand('codepath.open');
   fs.writeFileSync(path.join(testDir,'host-ready.json'),JSON.stringify({root,...selectedWalk}));
-  for(let i=0;!fs.existsSync(path.join(testDir,'ui-done.json'))&&i<1200;i++)await delay(100);
+  let maximizedForAuthoring=false;
+  for(let i=0;!fs.existsSync(path.join(testDir,'ui-done.json'))&&i<1200;i++){
+    if(!maximizedForAuthoring&&fs.existsSync(path.join(testDir,'authoring-maximize'))){
+      await vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup');
+      maximizedForAuthoring=true;
+    }
+    await delay(100);
+  }
   assert.ok(fs.existsSync(path.join(testDir,'ui-done.json')),'Webview UI tests must finish.');
   const uiResult=JSON.parse(fs.readFileSync(path.join(testDir,'ui-done.json'),'utf8'));
   assert.ok(!uiResult.error,uiResult.error);

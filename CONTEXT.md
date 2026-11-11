@@ -26,10 +26,16 @@ An explanation whose relationship to the current source needs review because tha
 A concise explanation of the overall purpose of the code shown in a card.
 
 **Block note**:
-An explanation of a particular block of code, including its behavior, decisions or function calls.
+A source-linked explanation of a particular block of code, including its behavior, decisions or function calls.
 
 **Variable explanation**:
-An explanation of what one specific variable represents and why the code uses it. It is distinct from the variable's type information and from a glossary covering every variable in a function.
+A source-linked explanation of what one specific variable represents and why the code uses it. It is distinct from the variable's type information and from a glossary covering every variable in a function.
+
+**Plain note**:
+A deliberate free-text note without source highlighting or an explicit Variables classification. It is distinct from a source-linked block note or variable explanation.
+
+**Authoring readiness**:
+A generated walkthrough has current card purposes and source-linked Notes and Variables for applicable parts, with explicit reasons for inapplicable categories. This is distinct from judging explanatory quality, completeness of relevant behavior or observed execution.
 
 **Archived note**:
 An explanation retained for reference and history but excluded from active reading. It can be restored without losing its identity or earlier versions.

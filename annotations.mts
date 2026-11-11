@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { resolve } from "./indexer.mjs";
+import { wholeIdentifierAttachment } from "./source-bindings.mjs";
 import type {
   Note,
   NoteRevision,
@@ -345,18 +346,9 @@ export function applyAnnotationOperation(
   if (variableName !== undefined)
     need(
       attachments.length > 0 &&
-        attachments.every((range) => {
-          const line = code.lines[range.startLine - 1];
-          const before =
-            Array.from(line.slice(0, range.startColumn)).at(-1) ?? "";
-          const after = Array.from(line.slice(range.endColumn))[0] ?? "";
-          const identifierPart = /^[$_\u200C\u200D\p{ID_Continue}]$/u;
-          return (
-            range.text === variableName &&
-            !identifierPart.test(before) &&
-            !identifierPart.test(after)
-          );
-        }),
+        attachments.every((range) =>
+          wholeIdentifierAttachment(range, variableName, code)
+        ),
       "A variable explanation needs explicit attachments selecting its whole variable name."
     );
   if (operation === "review_explanation") {

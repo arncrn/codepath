@@ -4,6 +4,8 @@ A local source walkthrough tool for small JavaScript, TypeScript, React and Go p
 
 This is a prototype, not a complete debugger. It runs inside VS Code as well as in a browser. Its MVP acceptance test is using Codepath to understand and comfortably review Codepath itself—not finishing every backlog feature. See TODO_LIST.md for outstanding work and the verification sections below for checks.
 
+**Release 0.8.1** adds shared source-linked authoring instructions and read-only generated-guide readiness checks. The 0.8 series also replaces repository-wide file cutoffs with on-demand source loading and paged discovery. Walkthrough archiving and automatic main-integration/PR generation are not included.
+
 ## Use in VS Code (recommended)
 
 Install the local **codepath.vsix** file using **Extensions: Install from VSIX…** in VS Code, or from this directory:
@@ -49,7 +51,7 @@ Cards no longer offer the **Callback role…** control. Existing role metadata i
 
 **Codepath: Open Walkthroughs** and the **Codepath** status bar item reopen your folder's walkthroughs. In a multi-root workspace, the active source editor determines the folder; otherwise you choose one. Selected code is captured at line granularity. Codepath reads saved files and asks before saving a dirty file.
 
-The extension starts its loopback service automatically on a free port. It keeps that service available for agents even after you close the panel, and stops services it owns when the VS Code window closes/reloads. An already-running healthy project service is reused, not stopped. Updated owners acquire a deterministic canonical-root loopback reservation before loading writable state and hold it through HTTP, handler and owned-backend drainage. Overlapping updated processes therefore share one writer. Failed probes reread connection metadata before considering liveness; unchanged live or unknown owners are not taken over. Port collisions fail closed rather than choosing another reservation. Healthy published legacy owners can be attached, but unmodified writers do not participate in this exclusivity protocol. Reload older owners before using the new tools. This is same-host protection, not a cross-host lock or power-loss durability guarantee. Webviews use VS Code messaging, not an iframe or direct localhost requests; the session token stays in the extension host.
+The extension starts its loopback service automatically on a free port. It keeps that service available for agents even after you close the panel, and stops services it owns when the VS Code window closes/reloads. An already-running healthy project service is reused, not stopped. Updated owners acquire a deterministic canonical-root loopback reservation before loading writable state and hold it through HTTP, handler and owned-backend drainage. Overlapping updated processes therefore share one writer. Failed probes reread connection metadata before considering liveness; unchanged live or unknown owners are not taken over. Port collisions fail closed rather than choosing another reservation. The ownership layer can discover healthy legacy owners, but the 0.8 host refuses to attach when they lack on-demand source support; it does not stop or replace them. Reload older owners before using the new tools; unmodified writers do not participate in the updated exclusivity protocol. This is same-host protection, not a cross-host lock or power-loss durability guarantee. Webviews use VS Code messaging, not an iframe or direct localhost requests; the session token stays in the extension host.
 
 Your last walkthrough, step and data/notes tab are remembered per workspace. In VS Code this survives panel close/reopen and window reload in the same workspace/profile. Browser restoration uses localStorage and requires the same origin (including service port) and profile. Deleted paths/steps fall back safely. A new agent focus request still takes precedence; an old already-consumed request does not steal your reading position. Draft note text and credentials are not persisted as reading context.
 
@@ -182,10 +184,10 @@ Generic stdio MCP configuration:
 
 Merge the server entry into your client's existing configuration; do not replace unrelated server entries. Client configuration locations vary.
 
-The MCP server supports initialize, ping, tools/list and tools/call. It negotiates protocol versions 2024-11-05, 2025-03-26 or 2025-06-18. It exposes 18 tools. This is a minimal adapter, not a full MCP SDK implementation.
+The MCP server supports initialize, ping, tools/list and tools/call. It negotiates protocol versions 2024-11-05, 2025-03-26 or 2025-06-18. It exposes the following tools. This is a minimal adapter, not a full MCP SDK implementation.
 
-- project_overview, read_source, search_source, follow_calls, resolve_reference
-- get_walkthrough, save_walkthrough, delete_walkthrough, source_usages
+- project_overview, list_source_files, inspect_source, find_symbols, read_source, search_source, follow_calls, resolve_reference
+- get_walkthrough, validate_walkthrough, save_walkthrough, delete_walkthrough, source_usages
 - add_note, add_reviewed_note, review_note, review_explanation, repair_step_source, focus_step
 - list_runs, get_run, record_run
 
@@ -193,7 +195,19 @@ For an existing walkthrough, read it and send its revision as expectedRevision w
 
 Suggested prompt:
 
-> Use Codepath to map what happens when a user clicks Submit. Read the source first. Include the component, handler, request, backend route, service, repository and response/render path. Explain what each highlighted range does: inputs, results, conditions and state changes. Keep setup history and separate review findings out of code explanations. For code review, explain behavior before versus after. Mark uncertain connections inferred. Do not claim execution without recorded events. Use example mode for invented sample data.
+> Use Codepath to map what happens when a user clicks Submit, following the full authoring rules in Connect your agent. Read current source first and include only relevant connections. Create concise card purposes, relevant source-attached block Notes and separate named Variables with exact whole-identifier attachments in the first generation—not as later follow-ups. Read back the saved guide and run validate_walkthrough; fix issues until ready is true before declaring completion. Report failed/time-out operations as incomplete. For code review explain current/base behavior versus proposed changes, and never present invented values as observed execution.
+
+### Generated-guide authoring readiness
+
+The UI instructions and MCP initialization share one policy from `authoring-policy.mts`; tool descriptions repeat the critical requirements for clients that do not surface initialization instructions. After an update, reconnect/restart the external MCP client and use the current configuration/instructions so an older running agent process does not retain obsolete tools or guidance.
+
+`save_walkthrough` saves cards and purposes, not a complete explanation set. Use `add_reviewed_note`/`review_note` with **nonempty current source attachments** for generated block Notes, and also set `variableName` with whole-identifier attachments for each Variables entry. `add_note` is for deliberate plain/manual notes: it cannot produce source highlights or a Variables entry. Never infer attachment ranges or classification from prose.
+
+Finish with `validate_walkthrough`, passing the walkthrough ID and `expectedRevision` from the latest `get_walkthrough`. It returns `ready`, per-card binding counts/current source fingerprints and actionable `issues`. An incomplete check sets MCP `isError` and CLI exit code 1; completed checks exit 0. Up to 250 issues are returned at once; `issueCount` includes all detected issues. Fix and re-read/re-check rather than treating a successful HTTP response as completion.
+
+Only genuinely irrelevant Notes/Variables categories can have `notApplicable` reasons, explicitly bound to the card/file hashes read by the author. These reasons do not excuse existing stale/unbound/invalid notes, and the check never archives or rewrites entries to make them pass. Manual/plain notes and unfinished cards remain saveable; they need not pass the stricter generated-guide check.
+
+The check is read-only and reports readiness only for that revision/source. It does **not** judge explanatory usefulness, semantic coverage, binding identity or actual execution, nor can it force an external model to obey the workflow. The author must still inspect every card's relevant blocks/variables; human acceptance remains necessary.
 
 ### CLI fallback
 
@@ -202,6 +216,10 @@ Suggested prompt:
     node agent.mjs --root "/absolute/project" --call get_walkthrough --args '{"id":"PATH_ID"}'
 
 A real agent can also use this CLI. No AI model or paid API is built into the prototype.
+
+    node agent.mjs --root "/absolute/project" --call validate_walkthrough --args '{"walkthroughId":"PATH_ID","expectedRevision":12}'
+
+Use the actual latest revision instead of the illustrative `12`.
 
 ## Data capture
 
@@ -319,6 +337,8 @@ Requires Java 11+; the first run downloads checksum-pinned TLA+ tools 1.7.4. The
     npm run test:reading-context:vscode
 
 `test:source-project` exercises actual Chrome against a fixture with 311 source files and 5,100 asset entries, including late-file discovery/selection and cancellation of a delayed picker lookup. Ordinary tests cover on-demand reads, cache reuse/eviction, changed/deleted/ignored files, exact source-review guards, paged searches and native targets outside discovery. These are bounded synthetic regressions, not a benchmark of the user's remote monorepo.
+
+`test:authoring` checks a deterministic real authoring-client flow, matching block colors, named Variable highlights/reveal and the shared UI/MCP policy. It is not a claim that every external LLM follows those instructions; ordinary authoring tests also cover read-only readiness, stale/unbound/partial bindings, exceptions, revisions, standalone MCP/CLI error signaling and manual-note compatibility.
 
 `test:learning-features` runs actual-Chrome correction/attachment, Variables, minimal-reading-UI, colored block-note creation, grammar, callback-control removal and dialog-race suites serially. `test:source-usages` checks the retained read-only backend query, not a reader-facing panel. It covers exact range/version checks, history, stale preview rejection, partial-identifier attachment composition, late navigation, and newer drafts surviving old dialog replies. `npm run test:service:go` adds optional real-Go shutdown and failed-signal checks. Feature screenshots default to ignored `.cache/` directories; `CODEPATH_TEST_OUTPUT_DIR` can redirect them.
 

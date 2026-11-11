@@ -32,6 +32,45 @@
 
 **A:** There is no explicit walkthrough-count cap, although all saved paths/notes/history still live in one loaded workspace.json record that is rewritten on saves, so practical capacity is not guaranteed. The proposed archive retains inactive walkthrough knowledge rather than historical code; reloading reconnects explanations to current source and refreshes what is stale, with archiving separate from staleness and PR review focused on behavioral changes relative to the target/base. Separate walkthrough archive storage is not implemented; the new on-demand source cache is a different feature and no longer imposes a permanent 200-file eligibility budget.
 
+### Q: Why could an agent save Notes but produce no Variables or source highlights?
+
+**A:** The old copied prompt grouped variable purposes under Notes, while `add_note` can save only unclassified/unanchored prose, so successful writes did not establish the required three-home explanation structure. Updated source shares one UI/MCP authoring policy and offers read-only `validate_walkthrough`: generated guides need current attached block Notes and explicitly named whole-identifier Variables (or explicit source-bound inapplicability reasons), with incomplete results signaled as MCP errors/CLI exit 1. Plain/manual/unfinished notes remain saveable; validation does not infer bindings, rewrite data, establish semantic quality or guarantee that an external model obeys the workflow.
+
 ### Q: What does .codepaths-ignore exclude?
 
 **A:** It already excludes project-relative file/directory prefixes from source indexing, one per line; blank/comment lines are skipped, but glob patterns and negation are not supported. It does not replace .gitignore or archive/delete saved walkthroughs, and live cards whose source is excluded can no longer resolve that source. Source-index scoping and a future historical walkthrough archive are complementary features, not the same operation.
+
+### Q: Why can a worktree's Codepath viewer show another implementation without switching the main checkout?
+
+**A:** A Git worktree is already a separate checkout on its own branch, and its Codepath service was started with that directory as the project root and its own compiled build as the viewer/backend assets. It reads that worktree's source and private .codepaths data, independently of the main checkout's current branch. This is a separate rooted service, not automatic Git branch switching or reading branch contents from the main directory.
+
+### Q: Why does the immutable-capture review walkthrough not show diffs?
+
+**A:** The current implementation captures immutable source rather than computing branch differences, which the user has now rejected as the wrong scope/interface. The requested replacement is branch comparison without capture/review-management controls or bulk AI submission, with deletable notes and non-red/pink annotation colors. The user clarified standard Git semantics: Changes separates HEAD-to-index, index-to-working-file and untracked differences, while Compare selects branches or a branch against the explicitly labelled current working tree. Current implementation branch refs still share one commit, so committed-branch comparisons are legitimately empty; this must not hide or mislabel uncommitted working changes.
+
+### Q: Why does the saved Change reviews comparison have only one code block per side?
+
+**A:** The saved review-capture-implementation deliberately contains one comparison card for the workspace.mts dispatch change, so it renders one Before/After pair. The format no longer has a fixed comparison-card count cap after the user's requested removal, but it does not automatically collect all worktree changes; the separate 16-card current-code walkthrough covers more of the implementation. This capture is a focused example, not a complete before/after review of the worktree, and its limited coverage should be clear.
+
+### Q: Why limit a captured review to eight before/after pairs?
+
+**A:** The intent was a prototype resource guardrail: each pair retains full before/after source and annotations, capture/persistence are synchronous, and the UI renders all pairs without paging. Eight was an arbitrary implementation choice, not a measured threshold, fundamental requirement or user-requested review boundary. At the user's request the runtime/tool-schema count cap was removed in the review worktree, while the nonempty-review, source-size, selection and 512 KiB input/expanded-storage safeguards remain.
+
+### Q: How do I enable AI discussions in the ticket-20 browser viewer?
+
+**A:** The browser viewer was initially started without an agent; configuration belongs to the owning server, not the browser or MCP client. Restart that viewer with explicit trusted pi-oauth settings for installed Pi 0.85.1, openai-codex/gpt-6.1-sol and the authorized existing auth/cached-catalog paths; this path needs no separate API key, while starting another server cannot reconfigure the current owner. Normal provider refresh may update the authorized login, but no prompt is sent until the reader selects context, reviews the disclosure and explicitly sends; the ticket-20 README contains the startup command.
+
+### Q: Why is approved source editing browser-only in the ticket-20 increment?
+
+**A:** That was the initial increment's implementation gap, not an inherent browser requirement; the isolated ticket-20 worktree now supports undoable native editor-buffer application in its owning VS Code host, without saving. It requires a clean, unchanged target, Auto Save off and compatible UTF-8 configuration; attached/wrong-host sessions fail closed rather than falling back to disk writes, and later user Save/format/re-encoding is outside the buffer operation. This worktree build is not installed in the user's real VS Code; browser application still checks saved disk only and cannot see arbitrary unsaved external buffers.
+
+### Q: Why is Review send disabled after choosing Request edit and entering instructions?
+
+**A:** Text alone is not sufficient: the selected discussion context must still match current source, the agent must be configured, and no reply/action may be pending. In the reported session the agent was enabled and no reply was pending, but the preserved discussions.mts context was stale after the implementation changed that file. Select the desired current source lines and explicitly choose Use selected lines as new context; this preserves the draft and earlier conversation without silently relabeling old source.
+
+### Q: Why does ticket-28 show only a horizontal chain of boxes?
+**A:** Its first implementation connected cards in saved reading order, not code flow. The user rejected that model and confirmed Flow should show source-supported calls, decisions, branches and loops linked to relevant cards; rearranging the same linear chain is not a fix.
+
+### Q: What does Repair source reference do?
+
+**A:** It reconnects a saved walkthrough card to its intended source after a file/range moves or becomes unavailable; it does not repair or edit the code. That maintenance action is separate from re-reviewing explanations and does not make old notes current. It does not belong in the branch-comparison reading interface.

@@ -23,7 +23,7 @@ Preserve these safety promises.
 
 Covered code includes service claim ordering, attached handles, real listener readiness, publication, post-await write admission, handler tracking and drainage, helper discovery/rechecks, exclusive reservation lifetime, token-identity cleanup, and synchronous whole-workspace save. The action and function mappings are in `coverage.json`.
 
-The actual parent HEAD is unborn. Keep `syncCommit` null and review exact SHA-256 fingerprints. Private snapshot `903acefa0cdfc7569aa017ca7d85449e8ff11865` is not an application commit. Do not treat a matching fingerprint as proof of correspondence. If covered source changes, read the changes and yield points before updating hashes or model behavior. Include the helper in that review. The old `unlinkConnection` no longer exists.
+Record the actual application commit whose covered source matches the reviewed files in `syncCommit`, alongside exact SHA-256 fingerprints and semantic/AST correspondence. Use null only if there is no matching application commit. The 0.8.0 review anchors to published application commit `50147c72ea7f3731ac9093f765e77b8213178f07`; the subsequent read-only authoring-validation changes are uncommitted and correctly use null until a matching application commit exists. The older private snapshot `903acefa0cdfc7569aa017ca7d85449e8ff11865` is not an application commit. Do not treat a matching fingerprint as proof of correspondence. If covered source changes, read the changes and yield points before updating hashes or model behavior. Include the helper in that review. The old `unlinkConnection` no longer exists.
 
 ## Run the main check
 

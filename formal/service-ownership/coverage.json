@@ -1,12 +1,12 @@
 {
   "syncCommit": null,
-  "syncCommitReason": "Actual parent HEAD is unborn. Reviewed source SHA-256 values are the synchronization record.",
+  "syncCommitReason": "The current read-only authoring-validation workspace/build changes are uncommitted, so no application commit matches all covered source. The prior indexing review matched application commit 50147c72ea7f3731ac9093f765e77b8213178f07; current hashes, semantic/AST review and actual-source replays define the synchronization boundary, not an invented commit.",
   "privateSnapshotSha": "903acefa0cdfc7569aa017ca7d85449e8ff11865",
   "privateSnapshotIsAppCommit": false,
   "sources": [
     {
       "file": "service.mts",
-      "sha256": "2be1ca9c5e4fd81fd5bd140e0716c0d243eafc705ce77e6726b89d2978fb929d",
+      "sha256": "ba3177890db5597ffa1eab25f453462347cab9e1d0f027bd1da3bfef3db4beac",
       "functions": ["startProjectService", "remote", "handle", "stopAndDrain"]
     },
     {
@@ -24,7 +24,7 @@
     },
     {
       "file": "workspace.mts",
-      "sha256": "7234e399dc8bbefef32eeceaee9b6cb1d6d4d58a22f09040281da4931ca65ac4",
+      "sha256": "8240b7ea2b757e14c699da8a143dc76d25f7fc0d6b5f446c93c05177c39e2918",
       "functions": [
         "openWorkspace",
         "save",
@@ -84,6 +84,7 @@
       "legacy concurrent starters",
       "demo mode and child processes",
       "notes/runs/content semantics",
+      "source discovery, parsing, cache correctness and responsiveness",
       "deletions and path updates",
       "unbounded restarts, callers, paths",
       "hostile filesystem replacement during synchronous cleanup",
@@ -96,12 +97,14 @@
     "classification": "Verification drift. Service moved discovery and ownership into a new helper, added a lifetime reservation and write-admission/drain lifecycle, and moved workspace loading after claim. Safety promises did not change.",
     "latestOwnerPolish": "Copied and reread the three authorized mirrored files. The later service change waits for Go child close instead of exit/error and reports process errors. No effect on this non-demo finite model. Demo child lifecycle remains excluded.",
     "workspace": "Parent reviewed the combined annotation, callback-role and read-only source-usage changes from ab392f0162d3cb33767ddaa233e36fee5c96a3643f8c77a6312c4d714c5a58bf. Workspace loading and the synchronous save/write fence remain unchanged. New annotation operations synchronously clone/replace one current path and preserve other paths, with local rollback. Source usage is read-only. These content/update semantics remain outside the finite new-path model and have separate runtime tests. The maintained decision boundary is recorded in actionCoverage, astCorrespondence and scope; temporary working reports have been removed.",
-    "history": "Only the private baseline commit and working source diff are available. No actual parent application commit exists.",
+    "history": "Earlier reviews predated an application commit; published application commit 50147c72ea7f3731ac9093f765e77b8213178f07 now contains the reviewed on-demand indexing implementation.",
+    "onDemandIndexing": "For 0.8.0, read all service/helper/workspace code and the new source-project/source-parser implementations. The helper is byte-identical to its prior review. Service startup now captures only demo walkthrough file hashes, synchronously and before capture requests; demo semantics remain excluded. Workspace replaces eager refresh with synchronous metadata/cache/query work and read-only overview/tool projections. Source helpers perform reads and in-memory cache updates, not workspace/connection writes, and introduce no await expressions. Reservation-before-writable-load, post-body assertWritable immediately before synchronous invoke/save, whole-state rename, and handler drain/token-cleanup/reservation-release order are unchanged. Existing AST assertions derive all three fixed constants as true. No model transitions or invariants were weakened; indexing/content correctness remains separately runtime-tested and excluded from the finite ownership proof.",
+    "authoringReadiness": "Reviewed the exact workspace diff from the prior 0.8.0 fingerprint: a pure validator import, a read-only capability, and an invoke branch that checks the current revision and validates a hydrated walkthrough. Full service/helper sources remain unchanged; source-bindings and walkthrough-validation only read inputs and construct reports, with no await or persisted-state writes. Generic post-await assertWritable, synchronous save/rename, startup ownership ordering and drainage are unchanged. No model transition/property change; authoring semantics are excluded and covered by separate client/browser/runtime regressions.",
     "notePresentation": "Reviewed optional variableName/archived metadata and shared NoteRevision snapshots. The exact workspace diff and ownership AST correspondence were reviewed; retained source fingerprints and action mappings record the synchronization boundary, while temporary reports are disposable. No ownership, synchronous save or deferred-write change; content/presentation semantics remain excluded from the finite model."
   },
   "buildMirror": {
     "file": "scripts/build-extension.mjs",
-    "sha256": "6d6f97aecd1a465f67681aa766f31a739011bafdd7908d2d74b4262ab98f42b2",
-    "review": "Normal build emits the ownership, annotations and source-usage helpers. The scratch replay compiles and imports its own actual ownership helper and workspace copies; unmutated supporting modules come from the normal compiled build."
+    "sha256": "811477285f27032c2ecf18e82aee82468cf4c7a53e0fcfd457d9a8a172883435",
+    "review": "Normal build emits the additional read-only authoring validator, shared binding helper and policy. Agent/tools are self-contained bundles to preserve the VSIX allowlist without missing policy sidecars. Scratch replay still compiles/imports its own service/helper/workspace, including mutations, and uses current normal-build supporting modules. Authoring/binding helpers introduce no asynchronous yield or persistence writer."
   }
 }

@@ -22,7 +22,7 @@ export function WorkspaceHeader({
           {overview ? overview.project + " / Walkthrough" : "Local workspace"}
         </span>
         <div>
-          <span className="prototype">Prototype 0.7</span>
+          <span className="prototype">Prototype 0.8.1</span>
           <button
             id="refresh"
             onClick={() => {

@@ -1,4 +1,5 @@
 import type { SourceAttachment, Step } from "../types.mjs";
+import { currentSourceAttachment } from "../source-bindings.mjs";
 
 export interface BlockNote {
   id: string;
@@ -8,23 +9,9 @@ export interface BlockNote {
 }
 
 function currentRange(step: Step, range: SourceAttachment): boolean {
-  const code = step.code;
-  if (
-    !code ||
-    step.error ||
-    range.file !== code.file ||
-    range.fileHash !== code.fileHash ||
-    range.startLine < code.startLine ||
-    range.endLine > code.endLine ||
-    range.startColumn > (code.lines[range.startLine - 1]?.length ?? -1) ||
-    range.endColumn > (code.lines[range.endLine - 1]?.length ?? -1)
-  )
-    return false;
-  const lines = code.lines.slice(range.startLine - 1, range.endLine);
-  if (!lines.length) return false;
-  lines[lines.length - 1] = lines.at(-1)!.slice(0, range.endColumn);
-  lines[0] = lines[0].slice(range.startColumn);
-  return lines.join("\n") === range.text;
+  return (
+    !!step.code && !step.error && currentSourceAttachment(range, step.code)
+  );
 }
 
 export function attachedBlockNotes(step: Step): BlockNote[] {

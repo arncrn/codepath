@@ -9,14 +9,19 @@ import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright-core';
 import {callTool} from '../dist/client.mjs';
+import {verifyNativeAuthoring} from './native-authoring-check.mjs';
 const base=fileURLToPath(new URL('../',import.meta.url));
 const macExecutables=['/Applications/Visual Studio Code.app/Contents/MacOS/Code','/Applications/Visual Studio Code.app/Contents/MacOS/Electron'];
 const executable=process.env.VSCODE_EXECUTABLE??(process.platform==='darwin'?macExecutables.find(p=>fs.existsSync(p))??'code':'code');
 const extensionPath=process.env.CODEPATH_TEST_EXTENSION_DIR??base;
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'codepath-vscode-'));
 const root=path.join(dir,'app');fs.mkdirSync(root);
+// Native selection and imported-alias navigation must work beyond the former inventory cutoff.
+fs.mkdirSync(path.join(root,'a-unrelated'));
+for(let i=0;i<250;i++)fs.writeFileSync(path.join(root,'a-unrelated',`file-${i}.ts`),`export function unrelated${i}() { return ${i}; }\n`);
 fs.writeFileSync(path.join(root,'flow.ts'),"export function submit() {\n  return save();\n}\nexport function save() { return 1; }\nsave();\nimport {persist as storeOrder} from './store';\nstoreOrder();\n");
 fs.writeFileSync(path.join(root,'store.ts'),'export function persist() { return 1; }\n');
+fs.writeFileSync(path.join(root,'authoring.ts'),'export function calculate(price: number, quantity: number) {\n  const amount = price * quantity;\n  return amount;\n}\n');
 fs.cpSync(path.join(base,'examples/checkout/go'),path.join(root,'go'),{recursive:true});
 const settingsDir=path.join(dir,'profile/User');fs.mkdirSync(settingsDir,{recursive:true});
 fs.writeFileSync(path.join(settingsDir,'settings.json'),JSON.stringify({'extensions.autoUpdate':false}));
@@ -105,6 +110,7 @@ try{
   const aliasWalkId=await frame.locator('#paths button.selected').getAttribute('data-path');
   const aliasWalk=await callTool(root,'get_walkthrough',{id:aliasWalkId});
   assert.equal(aliasWalk.steps[1].evidence,'source','Definition evidence stays in metadata, not a jargon badge.');
+  await verifyNativeAuthoring(frame,root,extensionPath,dir);
   await frame.getByRole('button',{name:'Open in editor ↗',exact:true}).first().click();
   await delay(800);
   assert.equal(await frame.locator('#error').isVisible(),false);

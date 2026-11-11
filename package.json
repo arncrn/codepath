@@ -1,6 +1,6 @@
 {
   "name": "codepath-prototype",
-  "version": "0.7.4",
+  "version": "0.8.1",
   "displayName": "Codepath",
   "description": "Source walkthroughs for one behavior at a time, inside VS Code.",
   "publisher": "codepath-local",
@@ -29,6 +29,7 @@
     "test:browser": "npm run compile && node scripts/test-browser.mjs",
     "test:reading-context": "npm run compile && node scripts/test-reading-context.mjs",
     "test:source-project": "npm run compile && node scripts/test-source-project.mjs",
+    "test:authoring": "npm run compile && node scripts/test-authoring.mjs",
     "test:reading-context:vscode": "npm run compile && node scripts/test-reading-context.mjs --desktop",
     "test:ui-refactor": "npm run compile && node scripts/test-ui-refactor.mjs",
     "test:annotations": "npm run compile && node scripts/test-annotations.mjs",

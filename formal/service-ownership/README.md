@@ -16,6 +16,16 @@ The properties retain their original definitions. The production change moves ow
 
 For 0.7.1, the parent reviewed the workspace's read-only capability field and shared note-history snapshot helper against the exact prior fingerprint. Service/helper bytes, ownership ordering, synchronous invoke/save and atomic rename are unchanged. The source-derived ownership checks, main/mutation replays and all six statechart runs pass again with the same finite bounds and state counts. Presentation and note-history semantics have separate runtime tests; they are not added formal coverage. The maintained correspondence is recorded in `coverage.json`; temporary working reports are not retained in the repository.
 
+## 0.8.0 indexing synchronization
+
+Reviewed the complete service, ownership helper and workspace, plus the new synchronous source-project/source-parser helpers. The ownership helper is unchanged; cache/discovery work introduces no asynchronous yield or persisted-state writer. The service's new startup fingerprint capture is confined to demo source, outside the finite model. Ownership-before-writable-load, the immediate post-body write fence, synchronous whole-workspace rename and drain/token-cleanup/reservation-release ordering are unchanged.
+
+The main and mutation checks and all six statechart cases pass with the same bounds and state counts below. All three invariants are **in sync**; no TLA+ transition or property was weakened. Indexing correctness/performance remains outside this ownership proof and has separate source/cache/browser/native regressions. The reviewed covered source and build mirror match published application commit `50147c72ea7f3731ac9093f765e77b8213178f07` byte-for-byte.
+
+## Unreleased authoring-readiness synchronization
+
+The main/mutation checks and all six statechart cases pass after this review, with the same 893-state baseline, 709-state freshness check and expected mutation counterexamples. The new workspace branch checks the saved revision and validates a hydrated walkthrough without saving, changing hashes or marking explanations reviewed. Shared attachment predicates and the validator are synchronous and read-only; service/helper ownership bytes and the existing write-admission/save/drain ordering are unchanged. Authoring/content correctness remains outside the finite ownership model and is checked through separate real client/browser tests. The current workspace/build edits are uncommitted, so the synchronization record uses hashes and semantic/AST review with `syncCommit: null`, not the earlier commit as a false match.
+
 ## Commands and evidence
 
 ```sh
@@ -28,7 +38,7 @@ Use supported Node and Java 11 or later. Existing project dependencies suffice. 
 
 Each main or mutation run prints its evidence directory under ignored `.cache/formal-verification/runs/`. Generated logs, tool downloads, summaries and diagrams are disposable and are not committed; rerun these commands when fresh evidence is needed. The directory contains source-derived configs, complete per-invariant TLC logs, actual replay results, scratch compilation fingerprints, and `summary.json`. Unexpected runtime errors, cleanup errors, source drift, model errors, and model/replay disagreements fail the command. A safety violation fails the main command. Mutation success means the specified breaks were caught, not that mutated code is safe.
 
-`coverage.json` records reviewed files, functions, AST correspondence, action mappings, limits, and SHA-256 values. `syncCommit` remains null because the actual parent HEAD is unborn. Private snapshot `903acefa0cdfc7569aa017ca7d85449e8ff11865` identifies this maintenance checkout's baseline only. It is not an application sync commit.
+`coverage.json` records reviewed files, functions, AST correspondence, action mappings, limits, and SHA-256 values. The prior 0.8.0 indexing review matched actual application commit `50147c72ea7f3731ac9093f765e77b8213178f07`. `syncCommit` is currently null because the subsequent authoring-validation workspace/build changes have no matching application commit yet; this is not a claim that HEAD is unborn. The older private snapshot `903acefa0cdfc7569aa017ca7d85449e8ff11865` is historical context only, not an application sync commit.
 
 ## Transitions and real replays
 

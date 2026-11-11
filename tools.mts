@@ -1,4 +1,8 @@
 import type { ToolName } from "./types.mjs";
+import {
+  authoringCompletionRule,
+  reviewedNoteRule,
+} from "./authoring-policy.mjs";
 interface Schema {
   type?: string | string[];
   description?: string;
@@ -187,6 +191,33 @@ export const tools = [
     ["id"]
   ),
   define(
+    "validate_walkthrough",
+    "Read-only final authoring check: card purposes, current source-attached block Notes and explicitly named whole-identifier Variables. A successful tool call is not completion: fix issues until ready is true. Does not write or judge semantic quality.",
+    {
+      walkthroughId: str("Walkthrough ID"),
+      expectedRevision: { type: "integer", minimum: 1 },
+      notApplicable: {
+        type: "array",
+        maxItems: 60,
+        description:
+          "Only for genuinely irrelevant categories; explicit reasons bound to the source you read. Does not excuse stale/unbound existing entries or assess whether the reasoning is true.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            stepId: str("Card ID"),
+            sourceHash: str("Current card source hash"),
+            fileHash: str("Current full-file hash"),
+            notes: str("Why no separate block Notes are relevant"),
+            variables: str("Why no variable explanations are relevant"),
+          },
+          required: ["stepId", "sourceHash", "fileHash"],
+        },
+      },
+    },
+    ["walkthroughId", "expectedRevision"]
+  ),
+  define(
     "source_usages",
     "Batch reverse source usages for every step in a saved walkthrough. Exact resolved ranges and overlapping ranges are separate. Unresolved references are not matches. This is source navigation, not execution or recursion evidence.",
     { walkthroughId: str("Walkthrough ID") },
@@ -194,7 +225,10 @@ export const tools = [
   ),
   define(
     "save_walkthrough",
-    "Create/update an ordered walkthrough. Read source first. Explain what each highlighted range does, not navigation provenance or setup history. In code reviews describe behavior before and after the change. Mark uncertain connections inferred. Updating needs expectedRevision from get_walkthrough. Existing notes are preserved by step ID.",
+    "Create/update the ordered cards and their concise purposes; this does not create Notes, Variables or source highlights. Read source first; mark uncertain connections inferred. Updates need expectedRevision and preserve notes by stable step ID. " +
+      reviewedNoteRule +
+      " " +
+      authoringCompletionRule,
     {
       id: str("Omit for new ID"),
       title: str("Behavior name"),
@@ -250,7 +284,8 @@ export const tools = [
   ),
   define(
     "add_note",
-    "Add an unclassified block explanation to Notes. The card explanation already gives the overall purpose; do not duplicate it. For individual Variables entries use add_reviewed_note with variableName and whole-identifier attachments. Source changes mark the note stale.",
+    "Add a deliberate plain/manual note. It is unclassified and unanchored: no colored source highlighting and no Variables entry. Do not use this tool for generated block Notes or Variables. " +
+      reviewedNoteRule,
     {
       walkthroughId: str("Path ID"),
       stepId: str("Step ID"),
@@ -262,7 +297,8 @@ export const tools = [
   ),
   define(
     "add_reviewed_note",
-    "Add an explicitly source-reviewed block note, or an explicitly named variable explanation with precise attachments. Pass an empty attachment array for an unanchored block note.",
+    reviewedNoteRule +
+      " Each attachment must identify the current file/hash and exact selected text/range. Use variableName only for separate Variables entries, with whole-identifier attachments. An empty attachment array is allowed only for intentional plain/manual notes; it does not satisfy generated-guide readiness.",
     { ...reviewProperties, ...notePresentationProperties },
     reviewRequired,
     false

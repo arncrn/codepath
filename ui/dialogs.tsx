@@ -9,6 +9,7 @@ import type {
 } from "../types.mjs";
 import { config, inVSCode } from "./transport";
 import { Picker } from "./source-picker";
+import { walkthroughAuthoringInstructions } from "../authoring-policy.mjs";
 import { CallbackRoleEditor } from "./callback-roles";
 
 export type Modal =
@@ -200,17 +201,14 @@ function AgentInstructions({ fail }: { fail: (error: unknown) => void }) {
         {copied ? "Copied" : "Copy configuration"}
       </button>
       <h3>Give your agent a specific behavior</h3>
+      <p>
+        For example: “Map what happens when a user clicks Submit.” Include these
+        authoring rules with your request:
+      </p>
       <blockquote>
-        Use Codepath to map what happens when a user clicks Submit. Read source
-        first. Include the frontend handler, request, backend route, service,
-        repository and response/render path. For each highlighted range, explain
-        what the whole function does in the card description (high level). Add
-        Notes that explain code blocks and function calls (medium level), then
-        the purpose of individual variables (low level). Do not repeat the
-        summary. Keep setup history and review findings out of code
-        explanations. For a code review, describe the behavior before and after
-        the change. Mark uncertain connections inferred. Use example mode for
-        invented values.
+        {walkthroughAuthoringInstructions.split("\n\n").map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
       </blockquote>
       <h3>Command-line fallback</h3>
       <pre>

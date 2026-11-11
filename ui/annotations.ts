@@ -1,4 +1,5 @@
 import type { SourceAttachment, Step } from "../types.mjs";
+import { wholeIdentifierAttachment } from "../source-bindings.mjs";
 
 export interface AttachedExplanation {
   id: string;
@@ -6,18 +7,13 @@ export interface AttachedExplanation {
 }
 export function attachedExplanations(step: Step): AttachedExplanation[] {
   if (!step.code || step.error) return [];
-  const file = step.code.file,
-    fileHash = step.code.fileHash;
-  const current = (ranges: SourceAttachment[] = []) =>
-    ranges.filter(
-      (range) => range.file === file && range.fileHash === fileHash
-    );
+  const code = step.code;
   return step.notes
     .filter((note) => note.variableName && !note.archived && !note.stale)
     .map((note) => ({
       id: note.id,
-      ranges: current(note.attachments).filter(
-        (range) => range.text === note.variableName
+      ranges: (note.attachments ?? []).filter((range) =>
+        wholeIdentifierAttachment(range, note.variableName!, code)
       ),
     }))
     .filter((explanation) => explanation.ranges.length > 0);

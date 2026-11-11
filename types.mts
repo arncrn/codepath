@@ -206,7 +206,11 @@ export interface Overview {
   root: string;
   project: string;
   revision: number;
-  capabilities?: { notePresentation: true; onDemandSource?: true };
+  capabilities?: {
+    notePresentation: true;
+    onDemandSource?: true;
+    authoringValidation?: true;
+  };
   index: SourceOverview;
   focus: Focus | null;
   paths: (Omit<SavedWalkthrough, "steps"> & { count: number })[];
@@ -278,6 +282,46 @@ export interface SourceUsageBatch {
   steps: StepSourceUsages[];
   unresolved: UnresolvedSourceUsage[];
 }
+export interface AuthoringIssue {
+  code:
+    | "empty-walkthrough"
+    | "source-unavailable"
+    | "missing-purpose"
+    | "stale-card"
+    | "stale-note"
+    | "missing-note-body"
+    | "unbound-note"
+    | "invalid-attachment"
+    | "duplicate-purpose"
+    | "missing-block-notes"
+    | "missing-variables";
+  stepId?: string;
+  noteId?: string;
+  message: string;
+}
+export interface AuthoringNotApplicable {
+  stepId: string;
+  sourceHash: string;
+  fileHash: string;
+  notes?: string;
+  variables?: string;
+}
+export interface AuthoringReport {
+  walkthroughId: string;
+  revision: number;
+  ready: boolean;
+  issueCount: number;
+  issues: AuthoringIssue[];
+  steps: {
+    stepId: string;
+    sourceHash?: string;
+    fileHash?: string;
+    blockNotes: number;
+    variables: { noteId: string; name: string; occurrences: number }[];
+  }[];
+  notApplicable: AuthoringNotApplicable[];
+  limitation: string;
+}
 export interface ToolArgs {
   project_overview: { walkthroughId?: string };
   read_source: { file: string; startLine?: number; endLine?: number };
@@ -288,6 +332,11 @@ export interface ToolArgs {
   follow_calls: { source: SourceRef; cursor?: string };
   resolve_reference: Position & { cursor?: string; identifyOnly?: boolean };
   get_walkthrough: { id: string };
+  validate_walkthrough: {
+    walkthroughId: string;
+    expectedRevision: number;
+    notApplicable?: AuthoringNotApplicable[];
+  };
   source_usages: { walkthroughId: string };
   save_walkthrough: {
     id?: string;
@@ -360,6 +409,7 @@ export interface ToolResults {
   };
   resolve_reference: ReferenceResult;
   get_walkthrough: Walkthrough;
+  validate_walkthrough: AuthoringReport;
   source_usages: SourceUsageBatch;
   save_walkthrough: Walkthrough;
   delete_walkthrough: { id: string; deleted: boolean };

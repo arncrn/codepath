@@ -53,14 +53,24 @@ test("Named UI operations exercise the real authenticated workspace interface", 
   );
   assert.equal((await api.getProjectOverview()).root, service.root);
   const browserFetch = globalThis.fetch;
-  let unsupportedPosts = 0;
+  let unsupportedPosts = 0,
+    sourceFault = "capability";
   globalThis.fetch = async (url, options) => {
     if (options?.method === "POST") unsupportedPosts++;
     const response = await browserFetch(url, options);
     const value = await response.json();
-    if (String(url) === "/api/state") delete value.capabilities.onDemandSource;
+    if (String(url) === "/api/state") {
+      if (sourceFault === "capability")
+        delete value.capabilities.onDemandSource;
+      else value.root = "/different-project";
+    }
     return new Response(JSON.stringify(value), { status: response.status });
   };
+  await assert.rejects(
+    api.inspectSource("flow.ts"),
+    /Reload VS Code.*Your draft is kept/
+  );
+  sourceFault = "root";
   await assert.rejects(
     api.inspectSource("flow.ts"),
     /Reload VS Code.*Your draft is kept/

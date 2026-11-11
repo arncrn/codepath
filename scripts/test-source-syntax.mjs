@@ -234,7 +234,7 @@ try {
           themeUri: service.url + "/syntax-theme.css",
           scriptUri: service.url + "/ui.js",
           cspSource: service.url,
-          config: { root, toolRoot: base, backend: "node" },
+          config: { root: service.root, toolRoot: base, backend: "node" },
         }
       ),
     })
