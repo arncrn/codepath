@@ -63,6 +63,11 @@ try {
             footerBottom: bottom.bottom,
             codeHeight: code.clientHeight,
             codeScrollHeight: code.scrollHeight,
+            functionName: code.querySelector(":scope > .function-context")
+              ?.textContent,
+            labelInNumberedSource: code.querySelectorAll(
+              "pre .function-context"
+            ).length,
             clippedControls: [...footer.querySelectorAll("button")].filter(
               (button) => button.getBoundingClientRect().bottom > box.bottom - 1
             ).length,
@@ -73,6 +78,12 @@ try {
         `Footer clipped at ${viewport.width}x${viewport.height}, zoom ${zoom}: ${JSON.stringify(geometry)}`
       );
       assert.equal(geometry.clippedControls, 0);
+      assert.equal(
+        geometry.functionName,
+        "example",
+        "Merged function name stays inside the scrollable code pane"
+      );
+      assert.equal(geometry.labelInNumberedSource, 0);
       assert.ok(
         geometry.codeHeight > 0,
         "Source pane remains available and scrollable"

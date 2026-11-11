@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SourceAttachment, Walkthrough } from "../types.mjs";
 import { CodeLines } from "./source-code";
+import { FunctionContextLabel } from "./function-context";
 import { blockLineLabel, wholeLineBlock } from "./block-notes";
 import { CallbackRoleSummary } from "./callback-roles";
 import type { SourceMenuPosition } from "./source-menu";
@@ -237,6 +238,7 @@ export function SourceCards({
                   </button>
                 </div>
                 <div className="code">
+                  <FunctionContextLabel step={step} />
                   <CodeLines
                     step={step}
                     walkthroughId={walkthrough!.id}

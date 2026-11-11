@@ -22,6 +22,9 @@ An inactive walkthrough retained for later use, not a historical code snapshot. 
 **Stale explanation**:
 An explanation whose relationship to the current source needs review because that source or its meaning has changed. Being archived and being stale are separate properties.
 
+**Function context**:
+The innermost lexical function containing a card's selected nonwhitespace current source, shown by name inside its code pane, not its authored purpose or a runtime call stack. A range spanning nested callbacks belongs to their common outer function. Current names and stale explanations are independent. Sibling functions without a common owner, top-level code and unavailable/unsupported source are explicit states.
+
 **Card explanation**:
 A concise explanation of the overall purpose of the code shown in a card.
 

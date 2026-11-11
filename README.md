@@ -51,6 +51,8 @@ Use **Repair source reference** to replace missing or obsolete source. Confirmat
 
 Cards use local grammar coloring for JS, TS, JSX/TSX and Go. Source remains read-only. Reverse-reference lists and repeated-source occurrence controls are not part of the reading interface.
 
+The top of each card's **code pane** shows its selected source's function name, separate from the authored title/purpose and selectable numbered source. JS/TS/JSX/TSX use parsed lexical scopes (including anonymous functions, bindings, methods and nested callbacks). The innermost function containing the selected nonwhitespace range owns it: partial ranges spanning nested callbacks name their common outer function; ranges wholly inside a nested function name that nested context. Whole-function selections name themselves. Ranges crossing functions without a common owner say **Multiple functions**, top-level/non-function code says **No enclosing function**, and unsupported/invalid or unavailable source remains explicit. This is lexical context, not a runtime call stack. Go supports simple balanced named functions/receiver methods; files containing function literals/types, generics or complex signatures conservatively show **Unknown function**. Names follow current saved source even when explanations are stale; the source-change warning and explicit repair/review remain independent. Reading context never reviews explanations, changes source references or saves reader data.
+
 Cards no longer offer the **Callback role…** control. Existing role metadata is retained. A different visual structure for function calls and recursion is a separate design discussion.
 
 **Codepath: Open Walkthroughs** and the **Codepath** status bar item reopen your folder's walkthroughs. In a multi-root workspace, the active source editor determines the folder; otherwise you choose one. Selected code is captured at line granularity. Codepath reads saved files and asks before saving a dirty file.
@@ -339,6 +341,7 @@ Requires Java 11+; the first run downloads checksum-pinned TLA+ tools 1.7.4. The
     npm run test:learning-features
     npm run test:markdown
     npm run test:card-layout
+    npm run test:function-context
     npm run test:reading-context
     npm run test:reading-context:vscode
 

@@ -46,7 +46,7 @@
 
 ### Q: Why does the immutable-capture review walkthrough not show diffs?
 
-**A:** The current implementation captures immutable source rather than computing branch differences, which the user has now rejected as the wrong scope/interface. The requested replacement is branch comparison without capture/review-management controls or bulk AI submission, with deletable notes and non-red/pink annotation colors. The user clarified standard Git semantics: Changes separates HEAD-to-index, index-to-working-file and untracked differences, while Compare selects branches or a branch against the explicitly labelled current working tree. Current implementation branch refs still share one commit, so committed-branch comparisons are legitimately empty; this must not hide or mislabel uncommitted working changes.
+**A:** The first implementation captured immutable source rather than computing Git differences; the user rejected that scope, and the corrected isolated viewer now provides staged/unstaged/untracked Changes plus branch or saved-working-tree comparisons, editable/deletable notes and non-red/pink annotation colors without capture-management or bulk AI controls. Branch comparisons use committed tips, not another checkout’s uncommitted files; choose Working tree for saved uncommitted changes. The tips initially shared `50147c7`, but main subsequently advanced to `ea201c1`, so only genuinely equal tips should show no differences.
 
 ### Q: Why does the saved Change reviews comparison have only one code block per side?
 
@@ -64,12 +64,12 @@
 
 **A:** That was the initial increment's implementation gap, not an inherent browser requirement; the isolated ticket-20 worktree now supports undoable native editor-buffer application in its owning VS Code host, without saving. It requires a clean, unchanged target, Auto Save off and compatible UTF-8 configuration; attached/wrong-host sessions fail closed rather than falling back to disk writes, and later user Save/format/re-encoding is outside the buffer operation. This worktree build is not installed in the user's real VS Code; browser application still checks saved disk only and cannot see arbitrary unsaved external buffers.
 
-### Q: Why is Review send disabled after choosing Request edit and entering instructions?
+### Q: Why can Request edit still have a disabled Preview request (formerly Review send)?
 
-**A:** Text alone is not sufficient: the selected discussion context must still match current source, the agent must be configured, and no reply/action may be pending. In the reported session the agent was enabled and no reply was pending, but the preserved discussions.mts context was stale after the implementation changed that file. Select the desired current source lines and explicitly choose Use selected lines as new context; this preserves the draft and earlier conversation without silently relabeling old source.
+**A:** Text alone is not sufficient: the selected discussion context must still match current source, the agent must be configured, and no reply/action may be pending. In the reported session the agent was enabled and no reply was pending, but the preserved discussions.mts context was stale after the implementation changed that file. Select the desired current source lines and explicitly choose Use selected lines as new context; this preserves the draft and earlier conversation without silently relabeling old source. The corrected viewer makes Request edit visible above history, replaces the technical disclaimer with plain instructions and shows the blocking reason beside Preview request.
 
 ### Q: Why does ticket-28 show only a horizontal chain of boxes?
-**A:** Its first implementation connected cards in saved reading order, not code flow. The user rejected that model and confirmed Flow should show source-supported calls, decisions, branches and loops linked to relevant cards; rearranging the same linear chain is not a fix.
+**A:** Its first implementation connected cards in saved reading order, not code flow. The user rejected that model and confirmed Flow should show source-supported calls, decisions, branches and loops linked to relevant cards; rearranging the same linear chain is not a fix. The corrected isolated viewer now renders an explicitly authored, exact-source-bound graph with card navigation—not an automatically inferred complete call graph or a runtime trace.
 
 ### Q: What does Repair source reference do?
 

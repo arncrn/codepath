@@ -1,5 +1,6 @@
 import { read, hash, callsIn, parseSource } from "./source-parser.mjs";
 import { createSourceProject } from "./source-project.mjs";
+import { functionContext } from "./source-functions.mjs";
 import type {
   SourceRef,
   SourceIndex,
@@ -68,6 +69,12 @@ export function resolve(root: string, index: SourceIndex, ref: SourceRef) {
     hash: hash(excerpt),
     fileHash: hash(text),
     lines,
+    functionContext: functionContext(
+      entry.functionScopes,
+      text,
+      startLine,
+      endLine
+    ),
   };
 }
 export function follow(

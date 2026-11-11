@@ -11,6 +11,9 @@
 .code .syntax-tag, .code .syntax-attribute { color: var(--syntax-tag); }
 .code .syntax-operator, .code .syntax-punctuation { color: inherit; }
 
+/* The function name belongs to the code pane, not selectable numbered source. */
+.function-context { padding: 0 15px 8px; font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; font-weight: 600; line-height: 1.5; color: inherit; user-select: none; }
+
 /* Reading layout: card purpose, block Notes, and explicitly named Variables. */
 #variables-panel { padding: 18px 0; }
 #variables { display: block; position: relative; max-width: 850px; max-height: 310px; overflow: auto; }

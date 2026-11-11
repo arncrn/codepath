@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import ts from "typescript";
-import type { SourceSymbol, CallSite } from "./types.mjs";
+import type { SourceSymbol, CallSite, FunctionScopes } from "./types.mjs";
+import { javascriptFunctionScopes } from "./source-functions.mjs";
 export const hash = (s: string) =>
   crypto.createHash("sha256").update(s).digest("hex").slice(0, 20);
 export const sourceExtensions = new Set([
@@ -125,6 +126,7 @@ export function parseFile(file: string, text: string) {
     line = (p: number) => text.slice(0, p).split("\n").length;
   if (file.endsWith(".go")) {
     const clean = mask(text);
+    const functionScopes: FunctionScopes = { functions: [], reliable: true };
     for (const m of clean.matchAll(
       /\bfunc\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(/g
     )) {
@@ -136,6 +138,23 @@ export function parseFile(file: string, text: string) {
         if (clean[end] === "{") depth++;
         if (clean[end] === "}") depth--;
       }
+      // Context supports only simple, balanced named Go functions/methods.
+      // The existing navigation index remains approximate. In particular its
+      // first-brace search is not safe for interface/struct return types.
+      const signature = clean.slice(m.index, open + 1);
+      const simple =
+        /^func\s+(?:\(\s*(?:\w+\s+)?\*?(\w+)\s*\)\s*)?\w+\s*\([\w\s,.*\[\]]*\)\s*(?:\*?[\w.\[\]]+|\([\w\s,.*\[\]]*\))?\s*\{$/.exec(
+          signature
+        );
+      if (!simple || depth || /\b(?:interface|struct)\b/.test(signature))
+        functionScopes.reliable = false;
+      functionScopes.functions.push({
+        name: (simple?.[1] ? simple[1] + "." : "") + m[1],
+        start: m.index,
+        end,
+        startLine: line(m.index),
+        startColumn: m.index - (text.lastIndexOf("\n", m.index - 1) + 1),
+      });
       const calls = [
         ...clean
           .slice(open, end)
@@ -150,7 +169,19 @@ export function parseFile(file: string, text: string) {
         approximate: true,
       });
     }
-    return { symbols: list, calls: list.flatMap((s) => s.calls) };
+    // Unmatched func tokens include literals, function types and generics.
+    // A conservative file-wide unknown avoids assigning their bodies to an
+    // outer function. This is intentionally not a second Go parser.
+    if (
+      [...clean.matchAll(/\bfunc\b/g)].length !==
+      functionScopes.functions.length
+    )
+      functionScopes.reliable = false;
+    return {
+      symbols: list,
+      calls: list.flatMap((s) => s.calls),
+      functionScopes,
+    };
   }
   const source = parseSource(file, text);
   const add = (node: ts.Node, name: string) => {
@@ -189,5 +220,9 @@ export function parseFile(file: string, text: string) {
     ts.forEachChild(n, visit);
   };
   visit(source);
-  return { symbols: list, calls: callsIn(source) };
+  return {
+    symbols: list,
+    calls: callsIn(source),
+    functionScopes: javascriptFunctionScopes(source),
+  };
 }

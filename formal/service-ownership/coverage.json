@@ -7,7 +7,12 @@
     {
       "file": "service.mts",
       "sha256": "ba3177890db5597ffa1eab25f453462347cab9e1d0f027bd1da3bfef3db4beac",
-      "functions": ["startProjectService", "remote", "handle", "stopAndDrain"]
+      "functions": [
+        "startProjectService",
+        "remote",
+        "handle",
+        "stopAndDrain"
+      ]
     },
     {
       "file": "service-ownership.mts",
@@ -104,7 +109,7 @@
   },
   "buildMirror": {
     "file": "scripts/build-extension.mjs",
-    "sha256": "811477285f27032c2ecf18e82aee82468cf4c7a53e0fcfd457d9a8a172883435",
-    "review": "Normal build emits the additional read-only authoring validator, shared binding helper and policy. Agent/tools are self-contained bundles to preserve the VSIX allowlist without missing policy sidecars. Scratch replay still compiles/imports its own service/helper/workspace, including mutations, and uses current normal-build supporting modules. Authoring/binding helpers introduce no asynchronous yield or persistence writer."
+    "sha256": "e6838643b87ef8ec628474e9585cef58e31d96d51a9eb3f86b5b7171861a8dde",
+    "review": "Normal build emits the additional read-only authoring validator, shared binding helper and policy. Agent/tools are self-contained bundles to preserve the VSIX allowlist without missing policy sidecars. Scratch replay still compiles/imports its own service/helper/workspace, including mutations, and uses current normal-build supporting modules. Authoring/binding helpers introduce no asynchronous yield or persistence writer. Reviewed ticket-27 integration into current main with ticket-26 retained: the build only adds source-functions.mts emission; lexical scope collection and projection are synchronous read-only source/cache metadata. Service/helper/workspace and all ownership admission, persistence and drain paths are byte-identical. Function context, Markdown and layout semantics are separately runtime-tested, not added finite-model coverage. This uncommitted build delta has no matching application commit."
   }
 }

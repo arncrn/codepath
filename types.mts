@@ -22,12 +22,27 @@ export interface SourceSymbol {
   evidence?: Evidence;
   fileHash?: string;
 }
+export interface FunctionScopes {
+  reliable: boolean;
+  functions: {
+    name: string;
+    start: number;
+    end: number;
+    startLine: number;
+    startColumn: number;
+  }[];
+}
+export type FunctionContext =
+  | { status: "function"; name: string; startLine: number; startColumn: number }
+  | { status: "multiple" | "no-function" }
+  | { status: "unknown"; reason: string };
 export interface SourceFileInfo {
   file: string;
   lineCount: number;
   hash: string;
   symbols: SourceSymbol[];
   calls?: CallSite[];
+  functionScopes?: FunctionScopes;
 }
 // In-process source interface; never serialized as the project overview.
 export interface SourceIndex {
@@ -71,6 +86,7 @@ export interface ResolvedSource {
   hash: string;
   fileHash: string;
   lines: string[];
+  functionContext: FunctionContext;
 }
 export type Evidence = "source" | "inferred";
 export interface Values {

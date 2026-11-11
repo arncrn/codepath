@@ -8,6 +8,7 @@ await build({
   entryPoints: [
     "indexer.mts",
     "source-parser.mts",
+    "source-functions.mts",
     "source-project.mts",
     "references.mts",
     "source-usage.mts",

@@ -183,15 +183,15 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - Integrated into main, uncommitted and not installed. The user accepted Markdown rendering; the reported clipped footer is fixed and checked across constrained layouts and 100/125/200% layout zoom.
   - Actual Chrome and disposable native-webview checks cover formatting, hostile HTML/URLs, resource blocking, raw editing and independent drafts. Browser checks also cover explicit safe links and full reload/service restart. Native external-browser launch remains unverified.
 
-- [ ] ticket-27. Show the containing function name inside each card's code pane.
+- [x] ticket-27. Show the containing function name inside each card's code pane.
   - blocked by: none.
-  - User accepted the corrected isolated implementation and marked it ready to merge. Not integrated into main; retain until explicit merge authorization.
-  - Partial ranges spanning nested callbacks identify their common containing function; genuinely ambiguous or unavailable source stays explicit.
+  - User accepted the corrected implementation and authorized integration into main; integrated uncommitted and not installed.
+  - Partial ranges spanning nested callbacks identify their common containing function; current source names remain independent of stale explanations. Genuinely ambiguous, unsupported or unavailable source stays explicit; Go inference remains conservative.
 
 - [ ] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
   - blocked by: none.
   - The user rejected a diagram of saved card order. Show source-supported calls, decisions, branches and loops linked to the relevant cards; unresolved connections must remain explicit.
-  - Corrected semantic-flow implementation is in progress in isolation, not integrated.
+  - Corrected source-bound authored Flow is available in the isolated viewer, with card navigation and explicit unresolved connections. Parent browser/native, source-binding, draft and ownership checks passed; not integrated into main and awaiting user acceptance.
 
 ## Effort and priority summary
 

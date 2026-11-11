@@ -264,6 +264,7 @@ export function createSourceProject(
       lineCount: text.split("\n").length,
       symbols: parsed.symbols.map((s) => ({ ...s, fileHash })),
       calls: parsed.calls,
+      functionScopes: parsed.functionScopes,
     };
     evict(file);
     const weight =

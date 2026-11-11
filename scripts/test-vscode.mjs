@@ -61,6 +61,9 @@ try{
   await frame.locator('.code-card').first().waitFor();
   assert.equal(await frame.locator('#title').innerText(),'Explore flow.ts · lines 5–5');
   assert.equal(await frame.locator('.code-card').count(),1);
+  assert.equal(await frame.locator('.function-context').textContent(),'No enclosing function');
+  assert.equal(await frame.locator('.code-card .code > .function-context').count(),1);
+  assert.equal(await frame.locator('.card-title .function-context').count(),0);
   assert.equal(await frame.locator('#error').isVisible(),false);
   assert.equal(await frame.getByRole('button',{name:'Callback role…',exact:true}).count(),0);
   assert.equal(await frame.evaluate(()=>window.CODEPATH_TOKEN),undefined);
@@ -93,6 +96,7 @@ try{
   await frame.locator('.line.focus [data-source-name="save"]').click({modifiers:[process.platform==='darwin'?'Meta':'Control']});
   await frame.locator('.code-card').nth(1).waitFor();
   assert.equal(await frame.locator('.code-card').count(),2);
+  assert.equal(await frame.locator('.code-card').nth(1).locator('.function-context').textContent(),'save');
   // Explicit cross-layer links still use Add step; it is not a call browser.
   await frame.locator('#add').click();
   const search=frame.getByPlaceholder('Symbol, filename or text…');
@@ -111,6 +115,7 @@ try{
   const aliasWalkId=await frame.locator('#paths button.selected').getAttribute('data-path');
   const aliasWalk=await callTool(root,'get_walkthrough',{id:aliasWalkId});
   assert.equal(aliasWalk.steps[1].evidence,'source','Definition evidence stays in metadata, not a jargon badge.');
+  assert.equal(await frame.locator('.code-card').nth(1).locator('.function-context').textContent(),'persist');
   await verifyNativeAuthoring(frame,root,extensionPath,dir);
   await frame.locator('.code-card[data-step="calculate"]').waitFor({state:'detached'});
   await verifyMarkdown(frame,(name,args)=>callTool(root,name,args),undefined,async()=>{
@@ -145,6 +150,7 @@ try{
   assert.equal(await frame.locator('.code-card').count(),1);
   assert.equal(await frame.locator('.line.focus').count(),1);
   assert.match(await frame.locator('.line.focus').innerText(),/http\.HandleFunc\("\/api\/orders",\s*handleOrder\)/);
+  assert.equal(await frame.locator('.function-context').textContent(),'main');
   const callback=frame.locator('.line.focus [data-source-name="handleOrder"]');
   await callback.click({button:'right'});
   await frame.getByRole('menuitem',{name:'Follow definition of handleOrder',exact:true}).click();
@@ -152,6 +158,7 @@ try{
   assert.equal(await frame.locator('.code-card').count(),2);
   assert.equal(await frame.locator('#modal').isVisible(),false);
   assert.equal(await frame.locator('#error').isVisible(),false);
+  assert.match(await frame.locator('.code-card').nth(1).locator('.function-context').textContent(),/^handleOrder$/);
   fs.writeFileSync(path.join(dir,'go-done.json'),'{}');
   for(let i=0;!fs.existsSync(path.join(dir,'delete-ready'))&&i<200;i++)await delay(100);
   assert.ok(fs.existsSync(path.join(dir,'delete-ready')),'Go assertions must finish before deletion.');
