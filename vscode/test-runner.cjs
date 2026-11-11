@@ -39,11 +39,18 @@ exports.run=async()=>{
   assert.equal(topLevel.steps[0].source.endLine,5);
   await vscode.commands.executeCommand('codepath.open');
   fs.writeFileSync(path.join(testDir,'host-ready.json'),JSON.stringify({root,...selectedWalk}));
-  let maximizedForAuthoring=false;
+  let maximizedForAuthoring=false, markdownReopened=false;
   for(let i=0;!fs.existsSync(path.join(testDir,'ui-done.json'))&&i<1200;i++){
     if(!maximizedForAuthoring&&fs.existsSync(path.join(testDir,'authoring-maximize'))){
       await vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup');
       maximizedForAuthoring=true;
+    }
+    if(!markdownReopened&&fs.existsSync(path.join(testDir,'markdown-reopen'))){
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+      await vscode.commands.executeCommand('codepath.open');
+      await vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup');
+      markdownReopened=true;
+      fs.writeFileSync(path.join(testDir,'markdown-reopened'),'ready');
     }
     await delay(100);
   }

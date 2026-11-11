@@ -43,6 +43,10 @@ Use **Write variable explanation** for a named variable and attach its exact who
 
 Archived notes remain stored but are absent from the reading interface. Unclassified older notes stay in Notes until explicitly classified. Agent/API changes still preserve history and source/revision checks.
 
+Notes and Variables bodies support Markdown: headings (`#` through `######` and Setext headings), paragraphs, **bold**, _emphasis_, ~strikethrough~ / ~~strikethrough~~, ordered/unordered (including nested) lists, inline code, indented/fenced code blocks, hard line breaks and inline/reference/autolink HTTP(S) links. Task-list markers remain passive `[x]` / `[ ]` text, not interactive controls. Tables, blockquotes and other unsupported blocks remain literal Markdown. Ordinary soft line breaks follow Markdown paragraph rules. Card purposes and editor/conflict text stay plain/raw; other Markdown extensions are not promised. Editing, saves and history retain the original Markdown syntax, not generated HTML. Rendering never classifies or attaches notes.
+
+Raw HTML is displayed as text. Images display alt text only, without loading resources. Only absolute `http://` and `https://` links without embedded credentials are active; they open on explicit user action in a separate browser tab or the native host's external browser. Other destinations (including relative, local-file, command and VS Code URLs) remain inactive labels. Markdown is parsed locally with Marked's dependency-free lexer and rendered as allowlisted React elements, not inserted HTML; the native nonce CSP and host messaging restrictions are unchanged.
+
 Use **Repair source reference** to replace missing or obsolete source. Confirmation uses the fingerprint of the source actually previewed. Source changes require another preview. Old explanations and notes remain independently unreviewed until corrected or deliberately re-reviewed.
 
 Cards use local grammar coloring for JS, TS, JSX/TSX and Go. Source remains read-only. Reverse-reference lists and repeated-source occurrence controls are not part of the reading interface.
@@ -333,6 +337,8 @@ Requires Java 11+; the first run downloads checksum-pinned TLA+ tools 1.7.4. The
     npm run test:browser
     npm run test:ui-refactor
     npm run test:learning-features
+    npm run test:markdown
+    npm run test:card-layout
     npm run test:reading-context
     npm run test:reading-context:vscode
 
@@ -340,7 +346,7 @@ Requires Java 11+; the first run downloads checksum-pinned TLA+ tools 1.7.4. The
 
 `test:authoring` checks a deterministic real authoring-client flow, matching block colors, named Variable highlights/reveal and the shared UI/MCP policy. It is not a claim that every external LLM follows those instructions; ordinary authoring tests also cover read-only readiness, stale/unbound/partial bindings, exceptions, revisions, standalone MCP/CLI error signaling and manual-note compatibility.
 
-`test:learning-features` runs actual-Chrome correction/attachment, Variables, minimal-reading-UI, colored block-note creation, grammar, callback-control removal and dialog-race suites serially. `test:source-usages` checks the retained read-only backend query, not a reader-facing panel. It covers exact range/version checks, history, stale preview rejection, partial-identifier attachment composition, late navigation, and newer drafts surviving old dialog replies. `npm run test:service:go` adds optional real-Go shutdown and failed-signal checks. Feature screenshots default to ignored `.cache/` directories; `CODEPATH_TEST_OUTPUT_DIR` can redirect them.
+`test:learning-features` runs actual-Chrome correction/attachment, Variables, minimal-reading-UI, colored block-note creation, grammar, callback-control removal, dialog-race and Markdown suites serially. `test:markdown` checks both explanation areas, hostile HTML/URLs and resource blocking, explicit safe-link navigation, raw editing/history, independent drafts, source colors/reveal, full reload and service-restart persistence. `test:card-layout` checks card-footer containment and source scrolling across narrow/constrained viewport sizes and 100/125/200% layout zoom. The same Markdown rendering/security/editing checks and panel dispose/recreate persistence run in the disposable native webview under `test:vscode`; native external-browser launch is intentionally not exercised. `test:source-usages` checks the retained read-only backend query, not a reader-facing panel. It covers exact range/version checks, history, stale preview rejection, partial-identifier attachment composition, late navigation, and newer drafts surviving old dialog replies. `npm run test:service:go` adds optional real-Go shutdown and failed-signal checks. Feature screenshots default to ignored `.cache/` directories; `CODEPATH_TEST_OUTPUT_DIR` can redirect them.
 
 The UI refactor regression suite uses the real service with held responses. It covers old walkthrough, run, and overview replies arriving after newer navigation; drafts during polling and delayed saves; explicit same-step resets; dialog-deferred focus; manual run selection; and revision-safe deletion with an outstanding read.
 

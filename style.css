@@ -21,6 +21,29 @@
 #notes { max-height: 310px; }
 .note p { font-size: 12px; color: #466455; }
 .note-review-controls { grid-column: 1 / -1; }
+
+/* Let source scroll within the card instead of forcing the footer below its
+   clipped border when title/purpose chrome consumes the available height. */
+.code-card > .code { min-height: 0; }
+.code-card > footer { flex-shrink: 0; }
+
+/* Explanation bodies only; source cards and raw-text editors are unchanged. */
+.note > .markdown-body { display: block; font-size: 12px; line-height: 1.7; color: var(--vscode-foreground, #466455); overflow-wrap: anywhere; }
+.note .markdown-body p { color: inherit; white-space: normal; margin: 8px 0; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 12px 0 6px; line-height: 1.3; letter-spacing: normal; font-weight: 650; color: inherit; }
+.markdown-body h1 { font-size: 1.6em; }
+.markdown-body h2 { font-size: 1.4em; }
+.markdown-body h3 { font-size: 1.2em; }
+.markdown-body h4 { font-size: 1.1em; }
+.markdown-body h5, .markdown-body h6 { font-size: 1em; }
+.markdown-body del { text-decoration: line-through; }
+.markdown-body ul, .markdown-body ol { margin: 8px 0; padding-left: 24px; }
+.markdown-body li > p { margin: 0; }
+.markdown-body code { font-size: .95em; background: var(--vscode-textCodeBlock-background, #edf3f0); border-radius: 3px; padding: 1px 3px; }
+.markdown-body pre { margin: 8px 0; padding: 10px; background: var(--vscode-textCodeBlock-background, #edf3f0); border-radius: 4px; overflow: auto; white-space: pre; }
+.markdown-body pre code { padding: 0; background: transparent; }
+.markdown-body a { color: var(--vscode-textLink-foreground, #246b9a); text-decoration: underline; }
+.markdown-body a:focus-visible { outline: 2px solid var(--vscode-focusBorder, #277755); outline-offset: 2px; }
 .note[aria-current="true"] { outline: 2px solid currentColor; outline-offset: 4px; }
 .note h3 { font-size: 13px; margin-bottom: 8px; }
 .annotation-editor { border: 1px solid var(--vscode-panel-border, #d5e3da); margin: 12px 0; }

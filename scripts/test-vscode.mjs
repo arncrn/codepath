@@ -10,6 +10,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright-core';
 import {callTool} from '../dist/client.mjs';
 import {verifyNativeAuthoring} from './native-authoring-check.mjs';
+import {verifyMarkdown} from './markdown-check.mjs';
 const base=fileURLToPath(new URL('../',import.meta.url));
 const macExecutables=['/Applications/Visual Studio Code.app/Contents/MacOS/Code','/Applications/Visual Studio Code.app/Contents/MacOS/Electron'];
 const executable=process.env.VSCODE_EXECUTABLE??(process.platform==='darwin'?macExecutables.find(p=>fs.existsSync(p))??'code':'code');
@@ -21,7 +22,7 @@ fs.mkdirSync(path.join(root,'a-unrelated'));
 for(let i=0;i<250;i++)fs.writeFileSync(path.join(root,'a-unrelated',`file-${i}.ts`),`export function unrelated${i}() { return ${i}; }\n`);
 fs.writeFileSync(path.join(root,'flow.ts'),"export function submit() {\n  return save();\n}\nexport function save() { return 1; }\nsave();\nimport {persist as storeOrder} from './store';\nstoreOrder();\n");
 fs.writeFileSync(path.join(root,'store.ts'),'export function persist() { return 1; }\n');
-fs.writeFileSync(path.join(root,'authoring.ts'),'export function calculate(price: number, quantity: number) {\n  const amount = price * quantity;\n  return amount;\n}\n');
+fs.writeFileSync(path.join(root,'authoring.ts'),'export function calculate(price: number, quantity: number) {\n  const amount = price * quantity;\n  return amount; // <img src="https://invalid.example/native-source">\n}\n');
 fs.cpSync(path.join(base,'examples/checkout/go'),path.join(root,'go'),{recursive:true});
 const settingsDir=path.join(dir,'profile/User');fs.mkdirSync(settingsDir,{recursive:true});
 fs.writeFileSync(path.join(settingsDir,'settings.json'),JSON.stringify({'extensions.autoUpdate':false}));
@@ -111,6 +112,27 @@ try{
   const aliasWalk=await callTool(root,'get_walkthrough',{id:aliasWalkId});
   assert.equal(aliasWalk.steps[1].evidence,'source','Definition evidence stays in metadata, not a jargon badge.');
   await verifyNativeAuthoring(frame,root,extensionPath,dir);
+  await frame.locator('.code-card[data-step="calculate"]').waitFor({state:'detached'});
+  await verifyMarkdown(frame,(name,args)=>callTool(root,name,args),undefined,async()=>{
+    fs.writeFileSync(path.join(dir,'markdown-reopen'),'ready');
+    for(let i=0;!fs.existsSync(path.join(dir,'markdown-reopened'))&&i<200;i++)await delay(100);
+    assert.ok(fs.existsSync(path.join(dir,'markdown-reopened')),'Native Markdown panel must reopen.');
+    let reopened;
+    for(let i=0;!reopened&&i<100;i++){
+      for(const page of browser.contexts().flatMap(c=>c.pages()))for(const candidate of page.frames()){
+        try{
+          await candidate.locator('#rail').waitFor({state:'visible',timeout:500});
+          reopened=candidate;
+          break;
+        }catch(e){if(e.name!=='TimeoutError'&&!candidate.isDetached())throw e;}
+      }
+      if(!reopened)await delay(100);
+    }
+    assert.ok(reopened,'Recreated native Markdown UI must render.');
+    frame=reopened;
+    frameForDiagnostics=frame;
+    return frame;
+  });
   await frame.getByRole('button',{name:'Open in editor ↗',exact:true}).first().click();
   await delay(800);
   assert.equal(await frame.locator('#error').isVisible(),false);

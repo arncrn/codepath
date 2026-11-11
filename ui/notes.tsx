@@ -4,6 +4,7 @@ import type { Note, ReferenceContext, Step } from "../types.mjs";
 import type { useAnnotationEditor } from "./annotation-editor";
 import { attachedBlockNotes, blockLineLabel } from "./block-notes";
 import { addNote } from "./api";
+import { MarkdownBody } from "./markdown-body";
 import type { ReadingContext } from "./reading-context";
 
 export function useNoteDraft(fail: (error: unknown) => void) {
@@ -91,7 +92,7 @@ export function NotesPanel({
                 : "Note needs review"}
           </span>
         )}
-        <p>{note.body}</p>
+        <MarkdownBody body={note.body} />
         {note.attachments?.some(
           (range) => range.fileHash !== currentStep?.code?.fileHash
         ) && (

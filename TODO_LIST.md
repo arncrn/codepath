@@ -177,17 +177,21 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - The full workflow needs durable line anchors, a review batch, agent transport, replies/status, source-version checks, and safe proposed-edit preview/application with explicit approval and undo. Discussion-only submission is smaller than adding code changes too.
   - Shares substantial infrastructure with code review, AI conversations and code editing above; it is not an additional independent system.
 
-- [ ] ticket-26. Support Markdown in Notes and Variables.
+- [x] ticket-26. Support Markdown in Notes and Variables.
   - blocked by: none.
-  - Render Markdown in both explanation areas while preserving stored text, source attachments and editing behavior.
+  - Both body reading areas render the documented safe subset with raw syntax retained in editors/storage/history; card purposes, classifications, attachments and guards are unchanged.
+  - Integrated into main, uncommitted and not installed. The user accepted Markdown rendering; the reported clipped footer is fixed and checked across constrained layouts and 100/125/200% layout zoom.
+  - Actual Chrome and disposable native-webview checks cover formatting, hostile HTML/URLs, resource blocking, raw editing and independent drafts. Browser checks also cover explicit safe links and full reload/service restart. Native external-browser launch remains unverified.
 
-- [ ] ticket-27. Show function context at the top of each card.
+- [ ] ticket-27. Show the containing function name inside each card's code pane.
   - blocked by: none.
-  - Add a compact indicator identifying the function associated with the selected code reference.
+  - User accepted the corrected isolated implementation and marked it ready to merge. Not integrated into main; retain until explicit merge authorization.
+  - Partial ranges spanning nested callbacks identify their common containing function; genuinely ambiguous or unavailable source stays explicit.
 
 - [ ] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
   - blocked by: none.
-  - Show a Mermaid diagram representing the walkthrough’s flow in a dedicated tab.
+  - The user rejected a diagram of saved card order. Show source-supported calls, decisions, branches and loops linked to the relevant cards; unresolved connections must remain explicit.
+  - Corrected semantic-flow implementation is in progress in isolation, not integrated.
 
 ## Effort and priority summary
 
