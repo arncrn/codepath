@@ -250,6 +250,86 @@ export function sourceCorrespondence(sources) {
     compact(siblings[siblings.indexOf(invoke) - 1].getText(service)),
     "owner.assertWritable();"
   );
+  const comparisonWrite = one(
+    service,
+    (node) =>
+      ts.isReturnStatement(node) &&
+      compact(node.getText(service)) ===
+        "returnjson(res,200,workspace.saveComparisonNote(view,a.arguments));",
+    "Review post-Git comparison annotation mutation."
+  );
+  const comparisonSiblings = comparisonWrite.parent.statements;
+  const comparisonPosition = comparisonSiblings.indexOf(comparisonWrite);
+  assert.equal(
+    compact(comparisonSiblings[comparisonPosition - 1].getText(service)),
+    "owner.assertWritable();",
+    "Every persistent comparison write needs immediate post-await owner admission."
+  );
+  assert.ok(
+    compact(
+      comparisonSiblings[comparisonPosition - 2].getText(service)
+    ).includes("awaitgit!.file("),
+    "Validate the exact comparison before owner admission, without cloning workspace state before that await."
+  );
+  assert.ok(
+    compact(stop.getText(service)).includes("git?.close(),"),
+    "Drain owned Git jobs as well as HTTP handlers before ownership release."
+  );
+  const comparisonCommit = declaration(workspace, "commitComparisonNotes");
+  assert.equal(nodes(comparisonCommit, ts.isAwaitExpression).length, 0);
+  const comparisonMethod = one(
+    workspace,
+    (node) =>
+      ts.isMethodDeclaration(node) &&
+      node.name.getText(workspace) === "saveComparisonNote",
+    "Review synchronous comparison note commit method."
+  );
+  assert.equal(nodes(comparisonMethod, ts.isAwaitExpression).length, 0);
+  // Source-bound writes add Git awaits, not a new persisted-state writer.
+  // Keep each admission immediately adjacent to its current-state sync commit.
+  for (const [method, admission] of [
+    ["createComparisonWalkthrough", "awaitgit!.admit("],
+    ["saveWalkthroughComparisonNote", "awaitgit!.fresh("],
+    ["setGitViewed", "awaitgit!.admitViewed("],
+  ]) {
+    const write = one(
+      service,
+      (node) =>
+        ts.isReturnStatement(node) &&
+        compact(node.getText(service)).startsWith(
+          `returnjson(res,200,workspace.${method}(`
+        ),
+      `Review post-Git authored comparison mutation: ${method}.`
+    );
+    const statements = write.parent.statements;
+    const position = statements.indexOf(write);
+    assert.equal(
+      compact(statements[position - 1].getText(service)),
+      "owner.assertWritable();",
+      `${method} must re-admit ownership immediately after all Git awaits.`
+    );
+    assert.ok(
+      compact(statements[position - 2].getText(service)).includes(admission),
+      `${method} must receive the freshly admitted source before the owner fence.`
+    );
+    const commit = one(
+      workspace,
+      (node) =>
+        ts.isMethodDeclaration(node) && node.name.getText(workspace) === method,
+      `Review synchronous authored comparison method: ${method}.`
+    );
+    assert.equal(nodes(commit, ts.isAwaitExpression).length, 0);
+  }
+  const viewedCommit = declaration(workspace, "commitGitViewed");
+  assert.equal(nodes(viewedCommit, ts.isAwaitExpression).length, 0);
+  assert.ok(
+    compact(viewedCommit.getText(workspace)).includes(
+      "changeGitViewed(state.gitViewed,input,viewed)"
+    ),
+    "Viewed CAS must use CURRENT workspace state, not a pre-await clone."
+  );
+  const authoredNotesCommit = declaration(workspace, "commitWalkthroughNotes");
+  assert.equal(nodes(authoredNotesCommit, ts.isAwaitExpression).length, 0);
   const listenAwait = one(
     service,
     (node) =>

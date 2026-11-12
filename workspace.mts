@@ -4,6 +4,30 @@ import crypto from "node:crypto";
 import { resolve, follow, hash } from "./indexer.mjs";
 import { createSourceProject } from "./source-project.mjs";
 import { validateWalkthrough } from "./walkthrough-validation.mjs";
+import {
+  validateComparisonNotes,
+  readComparisonNotes,
+  saveComparisonNote,
+  deleteComparisonNote,
+} from "./comparison-notes.mjs";
+import {
+  captureChangeReview,
+  readChangeReview,
+  validateChangeReviewState,
+} from "./change-reviews.mjs";
+import {
+  authorComparisonWalkthrough,
+  assertComparisonBudget,
+  readComparisonWalkthrough,
+  validateComparisonWalkthroughs,
+  comparisonStep,
+  saveWalkthroughNote,
+} from "./comparison-walkthroughs.mjs";
+import {
+  validateGitViewed,
+  readGitViewed,
+  changeGitViewed,
+} from "./git-viewed.mjs";
 import { resolveReference } from "./references.mjs";
 import { buildSourceUsageIndex } from "./source-usage.mjs";
 import type {
@@ -18,6 +42,13 @@ import type {
   SourceRef,
   StepInput,
   RunEvent,
+  GitFileView,
+  ComparisonNotes,
+  ComparisonNoteInput,
+  ComparisonWalkthroughInput,
+  GitQuery,
+  AdmittedGitFile,
+  WalkthroughComparisonNoteInput,
 } from "./types.mjs";
 import { errorMessage, parseCallbackRole } from "./types.mjs";
 import {
@@ -72,6 +103,10 @@ export function openWorkspace(root: string) {
   )
     throw Error("Unknown workspace format.");
   validateAnnotationState(state);
+  validateChangeReviewState(state.changeReviews);
+  validateComparisonNotes(state.comparisonNotes);
+  validateComparisonWalkthroughs(state.comparisonWalkthroughs);
+  validateGitViewed(state.gitViewed);
   for (const walkthrough of state.paths)
     for (const step of walkthrough.steps) parseCallbackRole(step.callbackRole);
   const sources = createSourceProject(root);
@@ -281,10 +316,170 @@ export function openWorkspace(root: string) {
       return 0;
     }
   }
+  function commitComparisonNotes(group: ComparisonNotes) {
+    const before = state;
+    state = {
+      ...state,
+      comparisonNotes: [
+        ...(state.comparisonNotes ?? []).filter(
+          (item) => item.scope !== group.scope
+        ),
+        group,
+      ],
+    };
+    try {
+      save();
+    } catch (error) {
+      state = before;
+      throw error;
+    }
+    return structuredClone(group);
+  }
+  function comparisonWalkthrough(id: string) {
+    const saved = state.comparisonWalkthroughs?.find((walk) => walk.id === id);
+    need(saved, "Comparison walkthrough not found.");
+    return saved;
+  }
+  function commitWalkthroughNotes(
+    walkthroughId: string,
+    stepId: string,
+    group: ComparisonNotes
+  ) {
+    const current = comparisonWalkthrough(walkthroughId);
+    const prospective = {
+      ...current,
+      steps: current.steps.map((step) =>
+        step.id !== stepId ? step : { ...step, annotations: group }
+      ),
+    };
+    assertComparisonBudget(prospective);
+    const before = state;
+    state = {
+      ...state,
+      comparisonWalkthroughs: state.comparisonWalkthroughs!.map((walk) =>
+        walk.id === walkthroughId ? prospective : walk
+      ),
+    };
+    try {
+      save();
+    } catch (error) {
+      state = before;
+      throw error;
+    }
+    return structuredClone(group);
+  }
+  function commitGitViewed(
+    input: { identity: string; expectedRevision: number },
+    viewed: boolean
+  ) {
+    const result = changeGitViewed(state.gitViewed, input, viewed);
+    const before = state;
+    state = { ...state, gitViewed: result.records };
+    try {
+      save();
+    } catch (error) {
+      state = before;
+      throw error;
+    }
+    return { ...result.record };
+  }
   function invoke<N extends ToolName>(name: N, a: ToolArgs[N]): ToolResults[N];
   function invoke(name: string, a: Input = {}) {
+    if (name === "list_git_explanations") {
+      const input = a as Input & { fileId?: string; binding?: string };
+      return (state.comparisonWalkthroughs ?? []).flatMap((walk) =>
+        JSON.stringify(walk.query) !== JSON.stringify(input.query)
+          ? []
+          : walk.steps
+              .filter(
+                (step) =>
+                  step.fileId === input.fileId && step.binding === input.binding
+              )
+              .map((step) => ({
+                walkthroughId: walk.id,
+                title: walk.title,
+                stepId: step.id,
+                stepTitle: step.title,
+              }))
+      );
+    }
+    if (name === "clear_git_viewed")
+      return commitGitViewed(a as ToolArgs["clear_git_viewed"], false);
+    if (name === "delete_walkthrough_comparison_note") {
+      const input = a as ToolArgs["delete_walkthrough_comparison_note"];
+      const step = comparisonStep(
+        comparisonWalkthrough(input.walkthroughId),
+        input.stepId
+      );
+      need(
+        input.scope === step.annotations.scope,
+        "Annotation belongs to a different authored card scope."
+      );
+      return commitWalkthroughNotes(
+        input.walkthroughId,
+        input.stepId,
+        deleteComparisonNote(step.annotations, input)
+      );
+    }
+    if (name === "delete_comparison_note") {
+      const input = a as ToolArgs["delete_comparison_note"];
+      return commitComparisonNotes(
+        deleteComparisonNote(
+          state.comparisonNotes?.find((group) => group.scope === input.scope),
+          input
+        )
+      );
+    }
+    if (name === "list_comparison_walkthroughs")
+      return (state.comparisonWalkthroughs ?? []).map(
+        ({ id, title, steps }) => ({ id, title, count: steps.length })
+      );
+    if (name === "get_comparison_walkthrough") {
+      const saved = state.comparisonWalkthroughs?.find(
+        (walk) => walk.id === a.id
+      );
+      need(saved, "Comparison walkthrough not found.");
+      return readComparisonWalkthrough(saved);
+    }
     if (name === "project_overview") return overview(a.walkthroughId);
     refresh();
+    if (name === "list_change_reviews")
+      return (state.changeReviews ?? []).map(
+        ({ id, title, capturedAt, fingerprint }) => ({
+          id,
+          title,
+          capturedAt,
+          fingerprint,
+        })
+      );
+    if (name === "get_change_review") {
+      const review = state.changeReviews?.find((review) => review.id === a.id);
+      need(review, "Change review not found.");
+      return readChangeReview(review, sources.currentText);
+    }
+    if (name === "create_change_review") {
+      need(
+        (state.changeReviews?.length ?? 0) < 20,
+        "At most 20 bounded change reviews per workspace."
+      );
+      const review = captureChangeReview(a, sources.currentText);
+      need(
+        !state.changeReviews?.some((saved) => saved.id === review.id),
+        "Review ID already exists; snapshots cannot be replaced."
+      );
+      const before = state;
+      state = {
+        ...state,
+        changeReviews: [...(state.changeReviews ?? []), review],
+      };
+      try {
+        save();
+      } catch (error) {
+        state = before;
+        throw error;
+      }
+      return readChangeReview(review, sources.currentText);
+    }
     if (name === "inspect_source") return sources.inspect(a.file!);
     if (name === "list_source_files")
       return sources.filesPage(a.query, a.cursor);
@@ -556,6 +751,76 @@ export function openWorkspace(root: string) {
     overview,
     invoke,
     applyPendingNoteUpdates,
+    gitViewed(identity: string) {
+      return readGitViewed(state.gitViewed, identity);
+    },
+    setGitViewed(identity: string, expectedRevision: number) {
+      return commitGitViewed({ identity, expectedRevision }, true);
+    },
+    comparisonSource(walkthroughId: string, stepId: string, binding: string) {
+      const saved = comparisonWalkthrough(walkthroughId);
+      const step = comparisonStep(saved, stepId);
+      need(step.binding === binding, "Authored source binding changed.");
+      // Only immutable source identity crosses the await; commit uses CURRENT state.
+      return {
+        query: structuredClone(saved.query),
+        fileId: step.fileId,
+        binding: step.binding,
+      };
+    },
+    saveWalkthroughComparisonNote(
+      input: WalkthroughComparisonNoteInput,
+      admitted: AdmittedGitFile
+    ) {
+      const group = saveWalkthroughNote(
+        comparisonWalkthrough(input.walkthroughId),
+        input,
+        admitted
+      );
+      return commitWalkthroughNotes(input.walkthroughId, input.stepId, group);
+    },
+    createComparisonWalkthrough(
+      input: ComparisonWalkthroughInput,
+      query: GitQuery,
+      views: AdmittedGitFile[]
+    ) {
+      const saved = authorComparisonWalkthrough(input, query, views);
+      const before = state;
+      state = {
+        ...state,
+        comparisonWalkthroughs: [
+          ...(state.comparisonWalkthroughs ?? []),
+          saved,
+        ],
+      };
+      try {
+        save();
+      } catch (error) {
+        state = before;
+        throw error;
+      }
+      return readComparisonWalkthrough(saved);
+    },
+    comparisonNotes(scope: string, binding: string) {
+      return readComparisonNotes(state.comparisonNotes, scope, binding);
+    },
+    saveComparisonNote(
+      view: Omit<GitFileView, "annotations">,
+      input: ComparisonNoteInput
+    ) {
+      commitComparisonNotes(
+        saveComparisonNote(
+          state.comparisonNotes?.find((group) => group.scope === view.scope),
+          view,
+          input
+        )
+      );
+      return readComparisonNotes(
+        state.comparisonNotes,
+        view.scope,
+        view.binding
+      );
+    },
     isNew,
     get empty() {
       return !state.paths.length;

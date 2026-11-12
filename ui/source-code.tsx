@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { ReactNode } from "react";
+import type { DisplayDiffRow } from "./git-diff-rows";
 import type { ReferenceContext, SourceAttachment, Step } from "../types.mjs";
 import { inVSCode } from "./transport";
 import { tokenizeSource } from "./source-syntax";
@@ -12,20 +13,40 @@ import {
 
 export function CodeLines({
   step,
+  annotationStep,
   walkthroughId,
   full,
   selectRange,
+  clearSelection,
   reveal,
+  snapshot = false,
+  exact = false,
+  changedLines,
+  changeKind,
+  explanationColors,
+  syntax: suppliedSyntax,
+  rowLines,
 }: {
   step: Step;
+  annotationStep?: Step;
   walkthroughId: string;
   full: boolean;
+  snapshot?: boolean;
+  exact?: boolean;
+  changedLines?: Set<number>;
+  changeKind?: "removed" | "added";
+  explanationColors?: Record<string, string>;
+  syntax?: ReturnType<typeof tokenizeSource>;
+  rowLines?: readonly DisplayDiffRow[];
   selectRange?: (range: SourceAttachment) => void;
+  clearSelection?: () => void;
   reveal?: (ids: string[]) => void;
 }) {
   const syntax = useMemo(
-    () => (step.code ? tokenizeSource(step.code.file, step.code.lines) : []),
-    [step.code]
+    () =>
+      suppliedSyntax ??
+      (step.code ? tokenizeSource(step.code.file, step.code.lines) : []),
+    [suppliedSyntax, step.code]
   );
   if (step.error || !step.code)
     return (
@@ -33,18 +54,36 @@ export function CodeLines({
         {step.error || "Source is no longer available."}
       </p>
     );
+  // Display extent is not attachment authority. Both raw file identity and
+  // selected authored range must fit before an excerpt can annotate full code.
+  const admitted =
+    !annotationStep ||
+    (!annotationStep.error &&
+      !annotationStep.stale &&
+      !!annotationStep.code &&
+      Number.isSafeInteger(annotationStep.code.startLine) &&
+      Number.isSafeInteger(annotationStep.code.endLine) &&
+      annotationStep.code.file === step.code.file &&
+      annotationStep.code.fileHash === step.code.fileHash &&
+      annotationStep.code.startLine >= step.code.startLine &&
+      annotationStep.code.endLine <= step.code.endLine);
+  const annotation = admitted
+    ? (annotationStep ?? step)
+    : { ...step, notes: [] };
   const code = step.code,
-    explanations = attachedExplanations(step),
-    blockNotes = attachedBlockNotes(step),
+    explanations = attachedExplanations(annotation),
+    blockNotes = attachedBlockNotes(annotation),
     markerColumns = code.lines.reduce(
       (maximum, _, index) =>
         Math.max(maximum, blocksOnLine(blockNotes, index + 1).length),
       0
     ),
-    start = full ? 1 : Math.max(1, code.startLine - 2),
+    start = full ? 1 : exact ? code.startLine : Math.max(1, code.startLine - 2),
     end = full
       ? code.lines.length
-      : Math.min(code.lines.length, code.endLine + 2);
+      : exact
+        ? code.endLine
+        : Math.min(code.lines.length, code.endLine + 2);
 
   function sourceText(line: string, lineNumber: number) {
     function coloredText(from: number, to: number): ReactNode[] {
@@ -90,6 +129,12 @@ export function CodeLines({
                     textDecoration: "underline dotted",
                     textUnderlineOffset: "3px",
                     cursor: "pointer",
+                    ...(explanationColors?.[ids[0]]
+                      ? {
+                          color: explanationColors[ids[0]],
+                          textDecorationColor: explanationColors[ids[0]],
+                        }
+                      : {}),
                   }
                 : undefined
             }
@@ -118,7 +163,8 @@ export function CodeLines({
             onKeyDown={(event) => {
               if (
                 matches.length &&
-                (event.key === " " || (!inVSCode && event.key === "Enter"))
+                (event.key === " " ||
+                  ((!inVSCode || snapshot) && event.key === "Enter"))
               ) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -133,7 +179,9 @@ export function CodeLines({
     }
     const parts: ReactNode[] = [];
     let offset = 0;
-    for (const match of inVSCode ? line.matchAll(/[A-Za-z_$][\w$]*/g) : []) {
+    for (const match of inVSCode && !snapshot
+      ? line.matchAll(/[A-Za-z_$][\w$]*/g)
+      : []) {
       if (offset < match.index)
         parts.push(
           <span key={"text-" + offset}>
@@ -210,20 +258,68 @@ export function CodeLines({
     <>
       <pre
         onMouseUp={(event) => {
-          const range = selectedSourceRange(event.currentTarget, step);
+          const range = admitted
+            ? selectedSourceRange(event.currentTarget, annotation)
+            : null;
           if (range) selectRange?.(range);
+          else if (annotationStep) clearSelection?.();
         }}
         onKeyUp={(event) => {
           if (!event.shiftKey) return;
-          const range = selectedSourceRange(event.currentTarget, step);
+          const range = admitted
+            ? selectedSourceRange(event.currentTarget, annotation)
+            : null;
           if (range) selectRange?.(range);
+          else if (annotationStep) clearSelection?.();
         }}
       >
-        {code.lines.slice(start - 1, end).map((line, index) => {
-          const blocks = blocksOnLine(blockNotes, index + start);
+        {(
+          rowLines ??
+          Array.from(
+            { length: Math.max(0, end - start + 1) },
+            (_, i) => start + i
+          )
+        ).map((lineNumber, index) => {
+          if (lineNumber !== null && typeof lineNumber === "object")
+            return (
+              <div
+                key={"hunk-" + index}
+                className="diff-hunk"
+                data-source-hunk="true"
+                role="separator"
+              >
+                {lineNumber.startLine === null
+                  ? "No source lines on this side"
+                  : `Lines ${lineNumber.startLine}–${lineNumber.endLine}`}
+              </div>
+            );
+          if (lineNumber === "omitted")
+            return (
+              <div
+                key={"omitted-" + index}
+                className="diff-gap"
+                data-source-gap="true"
+                role="separator"
+                aria-label="Unchanged lines omitted"
+              >
+                … unchanged lines omitted …
+              </div>
+            );
+          if (lineNumber === null)
+            return (
+              <div
+                key={"padding-" + index}
+                className="line diff-padding"
+                aria-hidden="true"
+              >
+                <span className="line-number">{"\u00a0"}</span>
+              </div>
+            );
+          const line = code.lines[lineNumber - 1];
+          const blocks = blocksOnLine(blockNotes, lineNumber);
           return (
             <div
-              key={index + start}
+              key={lineNumber}
               style={
                 blocks.length === 1
                   ? {
@@ -233,8 +329,16 @@ export function CodeLines({
               }
               className={
                 "line " +
-                (index + start >= code.startLine &&
-                index + start <= code.endLine
+                (changedLines?.has(lineNumber)
+                  ? "diff-" + changeKind + " "
+                  : "") +
+                (annotationStep &&
+                admitted &&
+                lineNumber >= annotationStep.code!.startLine &&
+                lineNumber <= annotationStep.code!.endLine
+                  ? "authored-range "
+                  : "") +
+                (lineNumber >= code.startLine && lineNumber <= code.endLine
                   ? "focus"
                   : "context")
               }
@@ -254,9 +358,9 @@ export function CodeLines({
                   ))}
                 </span>
               )}
-              <span className="line-number">{index + start}</span>
-              <code data-source-line={index + start}>
-                {sourceText(line, index + start)}
+              <span className="line-number">{lineNumber}</span>
+              <code data-source-line={lineNumber}>
+                {sourceText(line, lineNumber)}
               </code>
             </div>
           );

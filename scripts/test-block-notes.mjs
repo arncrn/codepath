@@ -115,6 +115,13 @@ try {
   const color = (id) =>
     entry(id).evaluate((e) => globalThis.getComputedStyle(e).borderLeftColor);
   assert.notEqual(await color(first.id), await color(second.id));
+  for (const id of [first.id, second.id]) {
+    const [red, green, blue] = (await color(id)).match(/\d+/g).map(Number);
+    assert.ok(
+      !(red > green * 1.25 && red > blue * 1.1),
+      "Annotation shading must not use deletion red/pink."
+    );
+  }
   assert.equal(
     await markers(first.id, 3).evaluate(
       (e) => globalThis.getComputedStyle(e).backgroundColor

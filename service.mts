@@ -6,7 +6,15 @@ import crypto from "node:crypto";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { openWorkspace } from "./workspace.mjs";
+import { createGitComparison } from "./git-comparison.mjs";
+import {
+  parseComparisonAuthoring,
+  parseWalkthroughComparisonNote,
+} from "./comparison-walkthroughs.mjs";
 import { claimProjectService } from "./service-ownership.mjs";
+import { viewedMarkRequest } from "./git-viewed.mjs";
+import { parseFile, sourceExtensions } from "./source-parser.mjs";
+import { functionContext } from "./source-functions.mjs";
 import { seed } from "./seed.mjs";
 import { handleOrder } from "./examples/checkout/api/router.mjs";
 
@@ -95,6 +103,7 @@ export async function startProjectService(
   if (claim.kind === "attached")
     return remote(claim.connection, false, async () => {});
   const owner = claim;
+  let git: ReturnType<typeof createGitComparison> | undefined;
   let goProcess: ChildProcess | undefined, goPort: number | undefined;
   let goExit: Promise<void> | undefined;
   let server: http.Server | undefined;
@@ -139,6 +148,7 @@ export async function startProjectService(
     const drained = await Promise.allSettled([
       httpClosed,
       childStopped,
+      git?.close(),
       (async () => {
         while (handlers.size) await Promise.all([...handlers]);
       })(),
@@ -148,6 +158,7 @@ export async function startProjectService(
   }
   try {
     const workspace = openWorkspace(root);
+    git = createGitComparison(root);
     workspace.applyPendingNoteUpdates();
     const cache = path.join(assetsRoot, ".cache");
     if (demo) {
@@ -274,6 +285,125 @@ export async function startProjectService(
             return json(res, 200, workspace.overview());
           if (req.method === "POST" && route === "/api/call") {
             const a = await body(req);
+            owner.assertWritable();
+            if (a.name === "get_git_viewed") {
+              return json(res, 200, {
+                pairs: git!
+                  .viewedPairs(a.arguments?.listId)
+                  .map((pair) =>
+                    pair.identity
+                      ? {
+                          fileId: pair.fileId,
+                          ...workspace.gitViewed(pair.identity),
+                        }
+                      : {
+                          fileId: pair.fileId,
+                          disabledReason: pair.disabledReason,
+                          viewed: false,
+                        }
+                  ),
+              });
+            }
+            if (a.name === "set_git_viewed") {
+              const input = viewedMarkRequest(a.arguments);
+              const identity = await git!.admitViewed(
+                input.query,
+                input.fileId,
+                input.identity
+              );
+              owner.assertWritable();
+              return json(
+                res,
+                200,
+                workspace.setGitViewed(identity, input.expectedRevision)
+              );
+            }
+            if (a.name === "save_walkthrough_comparison_note") {
+              const input = parseWalkthroughComparisonNote(a.arguments);
+              const source = workspace.comparisonSource(
+                input.walkthroughId,
+                input.stepId,
+                input.binding
+              );
+              const admitted = await git!.fresh(
+                source.query,
+                source.fileId,
+                source.binding
+              );
+              owner.assertWritable();
+              return json(
+                res,
+                200,
+                workspace.saveWalkthroughComparisonNote(
+                  input,
+                  admitted.views[0]
+                )
+              );
+            }
+            if (a.name === "create_comparison_walkthrough") {
+              const input = parseComparisonAuthoring(a.arguments);
+              const admitted = await git!.admit(input.listId, input.steps);
+              owner.assertWritable();
+              return json(
+                res,
+                200,
+                workspace.createComparisonWalkthrough(
+                  input,
+                  admitted.query,
+                  admitted.views
+                )
+              );
+            }
+            if (a.name === "check_git_comparison")
+              return json(res, 200, await git!.check(a.arguments?.listId));
+            if (a.name === "list_git_branches")
+              return json(res, 200, await git!.branches());
+            if (a.name === "list_git_changes")
+              return json(
+                res,
+                200,
+                await git!.list(a.arguments?.query, a.arguments?.cursor)
+              );
+            if (a.name === "get_git_file") {
+              const view = await git!.file(
+                a.arguments?.listId,
+                a.arguments?.fileId
+              );
+              owner.assertWritable();
+              const context = (side: typeof view.before) =>
+                functionContext(
+                  side.content !== undefined &&
+                    sourceExtensions.has(path.extname(side.file))
+                    ? parseFile(side.file, side.content).functionScopes
+                    : undefined,
+                  side.content ?? "",
+                  1,
+                  side.code?.lines.length ?? 1
+                );
+              return json(res, 200, {
+                ...view,
+                functionContexts: {
+                  before: context(view.before),
+                  after: context(view.after),
+                },
+                annotations: workspace.comparisonNotes(
+                  view.scope,
+                  view.binding
+                ),
+              });
+            }
+            if (a.name === "save_comparison_note") {
+              const view = await git!.file(
+                a.arguments?.listId,
+                a.arguments?.fileId
+              );
+              owner.assertWritable();
+              return json(
+                res,
+                200,
+                workspace.saveComparisonNote(view, a.arguments)
+              );
+            }
             owner.assertWritable();
             return json(res, 200, workspace.invoke(a.name, a.arguments));
           }

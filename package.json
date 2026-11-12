@@ -29,6 +29,8 @@
     "test:browser": "npm run compile && node scripts/test-browser.mjs",
     "test:reading-context": "npm run compile && node scripts/test-reading-context.mjs",
     "test:source-project": "npm run compile && node scripts/test-source-project.mjs",
+    "test:review-coverage": "npm run compile && node scripts/test-review-coverage.mjs",
+    "test:change-review": "npm run compile && node scripts/test-unified-review.mjs && node scripts/test-unified-sources.mjs && node scripts/test-unified-lifetimes.mjs && node scripts/test-comparison-walkthrough.mjs && node scripts/test-change-review.mjs && node scripts/test-git-draft-aba.mjs && node scripts/test-guide-toggle.mjs",
     "test:authoring": "npm run compile && node scripts/test-authoring.mjs",
     "test:reading-context:vscode": "npm run compile && node scripts/test-reading-context.mjs --desktop",
     "test:ui-refactor": "npm run compile && node scripts/test-ui-refactor.mjs",

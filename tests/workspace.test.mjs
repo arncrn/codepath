@@ -14,13 +14,26 @@ function fixture(t){
   return root;
 }
 test('Indexes TS, React and Go and suggests an explicitly uncertain next call',t=>{
-  const root=fixture(t),index=indexProject(root);
+  const root=fixture(t);
+  // Force continuation deterministically instead of relying on CPU scheduling
+  // to consume the source query's per-page work/time budget.
+  fs.mkdirSync(path.join(root,'000-assets'));
+  for(let i=0;i<251;i++)fs.writeFileSync(path.join(root,'000-assets',`asset-${i}.txt`),'asset');
+  const index=indexProject(root);
   assert.equal(index.files.length,3);
   assert.ok(index.files.find(f=>f.file==='App.tsx').symbols.some(s=>s.name==='App'));
   assert.equal(index.files.find(f=>f.file==='flow.go').symbols.length,2);
   const w=openWorkspace(root);
-  const result=w.invoke('follow_calls',{source:{file:'flow.ts',symbol:'submit'}});
-  assert.ok(result.candidates.some(s=>s.name==='saveOrder'));
+  const source={file:'flow.ts',symbol:'submit'};
+  let result=w.invoke('follow_calls',{source});
+  const candidates=[...result.candidates];
+  for(let page=0;!result.complete&&page<100;page++){
+    assert.ok(result.nextCursor,'An incomplete source search must provide continuation.');
+    result=w.invoke('follow_calls',{source,cursor:result.nextCursor});
+    candidates.push(...result.candidates);
+  }
+  assert.equal(result.complete,true,'The complete fixture search must finish.');
+  assert.ok(candidates.some(s=>s.name==='saveOrder'));
   assert.match(result.limitation,/not a resolved call graph/);
 });
 test('Notes survive reload, line moves and path updates; edits mark them stale',t=>{

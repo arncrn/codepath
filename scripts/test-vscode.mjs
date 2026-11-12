@@ -11,6 +11,7 @@ import {chromium} from 'playwright-core';
 import {callTool} from '../dist/client.mjs';
 import {verifyNativeAuthoring} from './native-authoring-check.mjs';
 import {verifyMarkdown} from './markdown-check.mjs';
+import {verifyNativeGit} from './native-git-check.mjs';
 const base=fileURLToPath(new URL('../',import.meta.url));
 const macExecutables=['/Applications/Visual Studio Code.app/Contents/MacOS/Code','/Applications/Visual Studio Code.app/Contents/MacOS/Electron'];
 const executable=process.env.VSCODE_EXECUTABLE??(process.platform==='darwin'?macExecutables.find(p=>fs.existsSync(p))??'code':'code');
@@ -138,6 +139,7 @@ try{
     frameForDiagnostics=frame;
     return frame;
   });
+  await verifyNativeGit(frame,root);
   await frame.getByRole('button',{name:'Open in editor ↗',exact:true}).first().click();
   await delay(800);
   assert.equal(await frame.locator('#error').isVisible(),false);

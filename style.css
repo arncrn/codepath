@@ -13,6 +13,91 @@
 
 /* The function name belongs to the code pane, not selectable numbered source. */
 .function-context { padding: 0 15px 8px; font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; font-weight: 600; line-height: 1.5; color: inherit; user-select: none; }
+/* Authored comparison walkthroughs: B keeps two semantic whole columns,
+   shared row tracks align starts without a shared pair-card wrapper. */
+.walkthrough-surface { display: contents; }
+.review-entry { padding: 8px 24px; }
+#git-comparisons { padding: 12px 24px 40px; overflow: auto; min-height: 0; flex: 1; }
+.comparison-heading { display: flex; justify-content: space-between; align-items: start; gap: 24px; margin: 10px 0 22px; }
+.comparison-heading > div { min-width: 0; max-width: 100%; }
+.current-guide-status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.comparison-heading small { font-size: 9px; letter-spacing: 1px; color: #749185; }
+.comparison-heading h1 { margin-top: 9px; }
+.comparison-source-choices { max-width: 340px; font-size: 11px; }
+.comparison-source-choices summary { cursor: pointer; padding: 8px; color: #638677; }
+.comparison-source-choices[open] { padding: 10px; border: 1px solid #d5e3da; border-radius: 8px; background: white; }
+.source-choices { display: flex; flex-wrap: wrap; gap: 10px; }
+.source-choices select { max-width: 280px; }
+.comparison-steps { display: flex; flex-direction: row; overflow-x: auto; margin: 0 0 20px; border-bottom: 1px solid #d5e3da; padding-bottom: 10px; }
+.comparison-steps button { white-space: nowrap; width: auto; align-items: center; }
+.comparison-steps button span { border: 1px solid #c0d5c9; border-radius: 50%; padding: 2px 7px; }
+.comparison-steps [aria-current="step"] { color: #246c51; font-weight: 650; background: #e0eee7; }
+.comparison-scroll { overflow-x: auto; padding-bottom: 18px; }
+.walkthrough-columns { display: grid; grid-template-columns: minmax(360px,1fr) minmax(360px,1fr); min-width: 760px; gap: 22px; align-items: start; }
+.comparison-column { display: grid; grid-template-rows: subgrid; grid-row: 1 / -1; gap: 22px; min-width: 0; }
+.comparison-column:first-child { grid-column: 1; }
+.comparison-column:last-child { grid-column: 2; }
+.comparison-column > h2 { display: flex; justify-content: space-between; align-items: center; font-size: 16px; padding: 10px; color: #4c6e65; }
+.comparison-column > h2 small { font-size: 10px; font-weight: 400; }
+.authored-card { border: 1px solid #cbded2; border-radius: 9px; background: white; min-width: 0; align-self: start; overflow: hidden; scroll-margin-top: 10px; }
+.walkthrough-columns .authored-card { display: grid; grid-template-rows: subgrid; grid-row: span 2; align-self: stretch; row-gap: 0; }
+.review-side { min-width: 0; padding: 16px; display: grid; grid-template-rows: subgrid; grid-row: span 2; row-gap: 0; }
+.comparison-card-heading, .comparison-card-body { min-width: 0; }
+.review-side h3 { font-size: 15px; }
+.authored-version { font-size: 11px; color: #527764; }
+.git-source-path { white-space: pre-wrap; overflow-wrap: anywhere; color: #6b897b; font-size: 11px; }
+.authored-purpose { border-top: 1px solid #e1ebe4; padding: 12px 0 2px; }
+.authored-purpose small { font-size: 8px; letter-spacing: 1px; color: #819b8d; }
+#git-comparisons p { margin: 9px 0; line-height: 1.65; }
+#git-comparisons p, #git-comparisons h3, #git-comparisons .note strong { overflow-wrap: anywhere; }
+#git-comparisons textarea { display: block; width: 100%; box-sizing: border-box; font-family: monospace; }
+.review-source { overflow-x: auto; max-height: none; min-height: 0; margin: 12px -16px; padding: 12px 0; }
+.review-source pre { margin: 0; font-size: 12px; line-height: 1.85; }
+.review-source .line.focus { background: transparent; border-left-color: transparent; }
+.review-source .line.diff-removed { background-color: #491e24; border-left-color: #bf6670; }
+.review-source .line.diff-added { background-color: #193f2b; border-left-color: #65b488; }
+.review-note-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid #e1ebe4; margin: 14px 0; }
+.review-note-tabs [aria-pressed="true"] { color: #246c51; border-bottom: 2px solid #609d80; }
+.review-notes { overflow: visible; }
+.review-notes .note { padding: 10px 12px; }
+.review-notes .block-note { border-left: 3px solid; }
+.current-annotations textarea { display: block; width: 100%; box-sizing: border-box; font-family: monospace; }
+.review-notes p { white-space: pre-wrap; }
+.not-applicable { color: #6b897b; font-size: 11px; }
+@media (max-width: 1000px) { .comparison-heading { flex-direction: column; gap: 10px; } }
+
+/* A: complete Git file checklist beside two whole semantic source columns. */
+#current-changes { padding: 12px 24px 40px; overflow: auto; min-height: 0; flex: 1; }
+#current-changes p { margin: 9px 0; line-height: 1.65; overflow-wrap: anywhere; }
+.current-source-choices { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.current-review-layout { display: grid; grid-template-columns: 225px minmax(320px,1fr); gap: 20px; margin-top: 20px; }
+.git-file-list { min-width: 0; align-self: start; position: sticky; top: 0; max-height: min(70vh,700px); overflow: auto; }
+.git-file-list h2 { text-transform: capitalize; font-size: 12px; padding: 8px; }
+.focus-toggle { flex-direction: row; align-items: center; gap: 8px; padding: 10px 4px 14px; color: inherit; }
+.focus-toggle input { margin: 0; flex: 0 0 auto; }
+.changed-file { display: grid; grid-template-columns: 22px minmax(0,1fr); align-items: start; }
+.changed-file input { margin-top: 14px; }
+.changed-file button { min-width: 0; display: block; overflow-wrap: anywhere; white-space: pre-wrap; }
+.changed-file button[aria-current="true"] { background: var(--vscode-list-activeSelectionBackground, #e1eee7); color: var(--vscode-list-activeSelectionForeground, #246c51); }
+.changed-file > small { grid-column: 2; font-size: 10px; padding: 4px 8px; }
+.current-diff-host { min-width: 0; }
+.current-diff-host > h2 { font-size: 16px; overflow-wrap: anywhere; margin: 10px 0; }
+.current-columns { display: grid; grid-template-columns: minmax(360px,1fr) minmax(360px,1fr); grid-template-rows: auto auto auto auto; min-width: 760px; column-gap: 20px; }
+.current-annotations { grid-row: 4; min-width: 0; overflow-wrap: anywhere; }
+.current-annotations:not(:empty) { padding: 16px; }
+.current-columns .line.authored-range > .line-number { text-decoration: underline; text-underline-offset: 3px; }
+.current-columns > section { display: grid; grid-template-rows: subgrid; grid-row: 1 / -1; min-width: 0; }
+.current-columns > section > h2 { font-size: 16px; padding: 12px; }
+.current-file-card { display: grid; grid-template-rows: subgrid; grid-row: 2 / 4; align-self: stretch; }
+.current-file-card > header { padding: 8px 16px; min-width: 0; }
+.current-file-card .review-source { margin: 0; align-self: start; }
+.review-source .line { min-height: 22.2px; }
+.review-source .function-context { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.diff-padding { user-select: none; opacity: .5; }
+.diff-hunk { padding: 7px 12px; margin: 4px 0; font-weight: 600; white-space: nowrap; background: #ffffff0d; user-select: none; }
+.eof-marker { font-size: 10px; color: #9bb7aa; padding: 0 12px; }
+.coverage-scope { font-size: 11px; color: #6b897b; }
+@media(max-width:800px) { .current-review-layout { grid-template-columns: 180px minmax(320px,1fr); gap: 12px; } #current-changes { padding: 12px; } }
 
 /* Reading layout: card purpose, block Notes, and explicitly named Variables. */
 #variables-panel { padding: 18px 0; }

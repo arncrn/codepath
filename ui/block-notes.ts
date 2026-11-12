@@ -25,7 +25,8 @@ export function attachedBlockNotes(step: Step): BlockNote[] {
       const ranges = (note.attachments ?? []).filter((range) =>
         currentRange(step, range)
       );
-      const hue = (210 + index * 137.508) % 360;
+      // Blue, teal, amber and violet only. Red/pink is reserved for deletions.
+      const hue = [210, 174, 42, 260, 194, 156, 52, 242][index % 8];
       return ranges.length
         ? [
             {

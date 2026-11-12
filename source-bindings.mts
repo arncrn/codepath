@@ -1,9 +1,9 @@
-import type { ResolvedSource, SourceAttachment } from "./types.mjs";
+import type { SourceCode, SourceAttachment } from "./types.mjs";
 
 // The saved range must identify exact text in the currently displayed card.
 export function currentSourceAttachment(
   range: SourceAttachment,
-  code: ResolvedSource
+  code: SourceCode
 ): boolean {
   if (
     range.file !== code.file ||
@@ -32,7 +32,7 @@ export function currentSourceAttachment(
 export function wholeIdentifierAttachment(
   range: SourceAttachment,
   name: string,
-  code: ResolvedSource
+  code: SourceCode
 ): boolean {
   if (
     !currentSourceAttachment(range, code) ||

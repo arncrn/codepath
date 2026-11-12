@@ -1,0 +1,189 @@
+{
+  "id": "codepath-authoring-readiness",
+  "title": "Codepath authoring readiness · guidance and completion signaling",
+  "cards": [
+    {
+      "id": "shared-guidance",
+      "title": "Return one shared authoring policy at MCP initialization",
+      "beforeBehavior": "MCP initialization returns an inline guidance string. It describes the layout and variable attachments but does not require a final read-only readiness check or exact block attachments; separate UI instructions can drift.",
+      "afterBehavior": "MCP initialization returns walkthroughAuthoringInstructions from the shared policy also used by the UI. That policy requires attached Notes, named Variables and validate_walkthrough until ready is true; initialization itself still only returns instructions.",
+      "reason": "Keep the two authoring entry points consistent and make incomplete generated guides explicit, without claiming that an external model must obey the instructions.",
+      "before": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    console.log(\n      JSON.stringify(\n        await callTool(\n          root,\n          option(\"--call\") as ToolName,\n          JSON.parse(option(\"--args\", \"{}\"))\n        ),\n        null,\n        2\n      )\n    );\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.7.1\" },\n          instructions:\n            \"Read source before mapping paths. Keep a brief overall purpose in the card explanation. Add block/function-call explanations to Notes. Use add_reviewed_note or review_note with an explicit variableName and whole-identifier source attachments for individual entries in Variables; never guess their category from prose. Archive obsolete duplicate notes without deleting their IDs/history. Do not duplicate the card explanation in Notes. For code review explain behavior before versus after at each relevant level. Keep setup history and separate review findings out of code explanations. Mark uncertain connections inferred. Never describe an illustrative run as observed execution.\",\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: { content: [{ type: \"text\", text: JSON.stringify(value) }] },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual Git blob agent.mts from explicitly selected local commit 50147c72ea7f3731ac9093f765e77b8213178f07 (implemented base tool). Not an inferred merge base.",
+        "startLine": 53,
+        "endLine": 65,
+        "purpose": "Negotiate the MCP protocol and tell the connected author how to create a guide.",
+        "notes": [
+          {
+            "body": "This branch builds the initialization response with an inline instruction string. It returns guidance, not an enforced completion check.",
+            "startLine": 53,
+            "endLine": 65
+          }
+        ],
+        "variables": [
+          {
+            "name": "m",
+            "body": "The parsed JSON-RPC request. Its method selects initialization, and its optional parameters supply the requested protocol version.",
+            "occurrences": [
+              {
+                "line": 53,
+                "startColumn": 8
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport {\n  authoringCheckFailed,\n  walkthroughAuthoringInstructions,\n} from \"./authoring-policy.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    const name = option(\"--call\") as ToolName;\n    const value = await callTool(\n      root,\n      name,\n      JSON.parse(option(\"--args\", \"{}\"))\n    );\n    console.log(JSON.stringify(value, null, 2));\n    if (authoringCheckFailed(name, value)) process.exitCode = 1;\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.8.1\" },\n          instructions: walkthroughAuthoringInstructions,\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: {\n            ...(authoringCheckFailed(m.params!.name, value)\n              ? { isError: true }\n              : {}),\n            content: [{ type: \"text\", text: JSON.stringify(value) }],\n          },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual uncommitted 0.8.1 agent.mts from the supplied review-task starting snapshot (_baseline/agent.mts); not a committed revision.",
+        "startLine": 54,
+        "endLine": 65,
+        "purpose": "Negotiate the same protocol while returning the shared generated-guide policy.",
+        "notes": [
+          {
+            "body": "The response now reads walkthroughAuthoringInstructions imported from authoring-policy.mts. That shared string requires current source attachments and the separate read-only validate_walkthrough operation; sending the string does not perform validation.",
+            "startLine": 54,
+            "endLine": 65
+          }
+        ],
+        "variables": [
+          {
+            "name": "m",
+            "body": "The parsed JSON-RPC request. Its method selects initialization, and its optional parameters supply the requested protocol version.",
+            "occurrences": [
+              {
+                "line": 54,
+                "startColumn": 8
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "cli-completion",
+      "title": "Signal incomplete readiness to a CLI caller",
+      "beforeBehavior": "The CLI prints any successfully returned tool value and exits successfully. Only thrown transport/tool errors set exit code 1; a result describing an incomplete guide has no special signaling.",
+      "afterBehavior": "The CLI still prints the complete tool result, then sets exit code 1 when authoringCheckFailed recognizes validate_walkthrough without ready === true. Other successful tool results keep the normal exit status.",
+      "reason": "A script must not confuse a successful readiness request with a ready guide. Keep draft saving permissive while giving completion checks an observable failure status.",
+      "before": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    console.log(\n      JSON.stringify(\n        await callTool(\n          root,\n          option(\"--call\") as ToolName,\n          JSON.parse(option(\"--args\", \"{}\"))\n        ),\n        null,\n        2\n      )\n    );\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.7.1\" },\n          instructions:\n            \"Read source before mapping paths. Keep a brief overall purpose in the card explanation. Add block/function-call explanations to Notes. Use add_reviewed_note or review_note with an explicit variableName and whole-identifier source attachments for individual entries in Variables; never guess their category from prose. Archive obsolete duplicate notes without deleting their IDs/history. Do not duplicate the card explanation in Notes. For code review explain behavior before versus after at each relevant level. Keep setup history and separate review findings out of code explanations. Mark uncertain connections inferred. Never describe an illustrative run as observed execution.\",\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: { content: [{ type: \"text\", text: JSON.stringify(value) }] },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual Git blob agent.mts from explicitly selected local commit 50147c72ea7f3731ac9093f765e77b8213178f07 (implemented base tool). Not an inferred merge base.",
+        "startLine": 11,
+        "endLine": 26,
+        "purpose": "Print a requested CLI tool result and report thrown errors.",
+        "notes": [
+          {
+            "body": "The tool call is directly nested in JSON.stringify and console.log. No readiness result is inspected on the success path; the catch only handles thrown errors.",
+            "startLine": 11,
+            "endLine": 26
+          }
+        ],
+        "variables": [
+          {
+            "name": "root",
+            "body": "The resolved project folder. callTool uses it to find that project's local Codepath connection; it is not a Git baseline.",
+            "occurrences": [
+              {
+                "line": 16,
+                "startColumn": 10
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport {\n  authoringCheckFailed,\n  walkthroughAuthoringInstructions,\n} from \"./authoring-policy.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    const name = option(\"--call\") as ToolName;\n    const value = await callTool(\n      root,\n      name,\n      JSON.parse(option(\"--args\", \"{}\"))\n    );\n    console.log(JSON.stringify(value, null, 2));\n    if (authoringCheckFailed(name, value)) process.exitCode = 1;\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.8.1\" },\n          instructions: walkthroughAuthoringInstructions,\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: {\n            ...(authoringCheckFailed(m.params!.name, value)\n              ? { isError: true }\n              : {}),\n            content: [{ type: \"text\", text: JSON.stringify(value) }],\n          },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual uncommitted 0.8.1 agent.mts from the supplied review-task starting snapshot (_baseline/agent.mts); not a committed revision.",
+        "startLine": 15,
+        "endLine": 24,
+        "purpose": "Print a CLI tool result and separately signal an incomplete generated-guide check.",
+        "notes": [
+          {
+            "body": "The returned value is printed unchanged, then authoringCheckFailed checks the tool name and ready field. For an incomplete validate_walkthrough result the CLI sets a failing exit code without rewriting the guide or its notes.",
+            "startLine": 15,
+            "endLine": 24
+          }
+        ],
+        "variables": [
+          {
+            "name": "value",
+            "body": "The tool result, retained intact for output; only readiness failure signaling is added around it.",
+            "occurrences": [
+              {
+                "line": 18,
+                "startColumn": 10
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-completion",
+      "title": "Mark an incomplete readiness result as an MCP tool error",
+      "beforeBehavior": "A successful callTool response is always wrapped as MCP text content, without isError. Only thrown errors use the error envelope, so ordinary successful transport alone cannot distinguish an incomplete guide.",
+      "afterBehavior": "The MCP response preserves the tool result as JSON text and conditionally includes isError: true for an incomplete validate_walkthrough check. A ready check and other tools keep the ordinary success envelope.",
+      "reason": "Expose the same completion distinction to MCP clients as the CLI, while retaining the actionable report and leaving manual/draft workflows saveable.",
+      "before": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    console.log(\n      JSON.stringify(\n        await callTool(\n          root,\n          option(\"--call\") as ToolName,\n          JSON.parse(option(\"--args\", \"{}\"))\n        ),\n        null,\n        2\n      )\n    );\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.7.1\" },\n          instructions:\n            \"Read source before mapping paths. Keep a brief overall purpose in the card explanation. Add block/function-call explanations to Notes. Use add_reviewed_note or review_note with an explicit variableName and whole-identifier source attachments for individual entries in Variables; never guess their category from prose. Archive obsolete duplicate notes without deleting their IDs/history. Do not duplicate the card explanation in Notes. For code review explain behavior before versus after at each relevant level. Keep setup history and separate review findings out of code explanations. Mark uncertain connections inferred. Never describe an illustrative run as observed execution.\",\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: { content: [{ type: \"text\", text: JSON.stringify(value) }] },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual Git blob agent.mts from explicitly selected local commit 50147c72ea7f3731ac9093f765e77b8213178f07 (implemented base tool). Not an inferred merge base.",
+        "startLine": 70,
+        "endLine": 79,
+        "purpose": "Return the requested tool value in a JSON-RPC MCP response.",
+        "notes": [
+          {
+            "body": "The success branch serializes value as text content unconditionally. The later catch can mark a thrown error, but this result wrapper has no readiness condition.",
+            "startLine": 70,
+            "endLine": 79
+          }
+        ],
+        "variables": [
+          {
+            "name": "value",
+            "body": "The tool result, retained intact for output; only readiness failure signaling is added around it.",
+            "occurrences": [
+              {
+                "line": 72,
+                "startColumn": 14
+              }
+            ]
+          }
+        ]
+      },
+      "after": {
+        "file": "agent.mts",
+        "content": "import readline from \"node:readline\";\nimport path from \"node:path\";\nimport { tools } from \"./tools.mjs\";\nimport {\n  authoringCheckFailed,\n  walkthroughAuthoringInstructions,\n} from \"./authoring-policy.mjs\";\nimport { callTool } from \"./client.mjs\";\nimport type { ToolName, ToolArgs } from \"./types.mjs\";\nimport { errorMessage } from \"./types.mjs\";\nconst args = process.argv.slice(2),\n  option = (n: string, d = \"\") =>\n    args.includes(n) ? args[args.indexOf(n) + 1] : d,\n  root = path.resolve(option(\"--root\", process.cwd()));\nif (args.includes(\"--call\")) {\n  try {\n    const name = option(\"--call\") as ToolName;\n    const value = await callTool(\n      root,\n      name,\n      JSON.parse(option(\"--args\", \"{}\"))\n    );\n    console.log(JSON.stringify(value, null, 2));\n    if (authoringCheckFailed(name, value)) process.exitCode = 1;\n  } catch (e) {\n    console.error(errorMessage(e));\n    process.exitCode = 1;\n  }\n} else {\n  const send = (value: Record<string, unknown>) =>\n    process.stdout.write(JSON.stringify({ jsonrpc: \"2.0\", ...value }) + \"\\n\");\n  for await (const line of readline.createInterface({\n    input: process.stdin,\n    crlfDelay: Infinity,\n  })) {\n    if (!line.trim()) continue;\n    let m: {\n      id?: string | number | null;\n      method?: string;\n      params?: {\n        protocolVersion?: string;\n        name: ToolName;\n        arguments?: ToolArgs[ToolName];\n      };\n    };\n    try {\n      m = JSON.parse(line);\n    } catch {\n      send({ id: null, error: { code: -32700, message: \"Parse error\" } });\n      continue;\n    }\n    if (m.id === undefined) continue;\n    const id = m.id;\n    if (m.method === \"initialize\")\n      send({\n        id,\n        result: {\n          protocolVersion: [\"2024-11-05\", \"2025-03-26\", \"2025-06-18\"].includes(\n            m.params?.protocolVersion ?? \"\"\n          )\n            ? m.params!.protocolVersion\n            : \"2025-06-18\",\n          capabilities: { tools: {} },\n          serverInfo: { name: \"codepath-prototype\", version: \"0.8.1\" },\n          instructions: walkthroughAuthoringInstructions,\n        },\n      });\n    else if (m.method === \"ping\") send({ id, result: {} });\n    else if (m.method === \"tools/list\") send({ id, result: { tools } });\n    else if (m.method === \"tools/call\") {\n      try {\n        const value = await callTool(\n          root,\n          m.params!.name,\n          (m.params!.arguments ?? {}) as ToolArgs[ToolName]\n        );\n        send({\n          id,\n          result: {\n            ...(authoringCheckFailed(m.params!.name, value)\n              ? { isError: true }\n              : {}),\n            content: [{ type: \"text\", text: JSON.stringify(value) }],\n          },\n        });\n      } catch (e) {\n        send({\n          id,\n          result: {\n            isError: true,\n            content: [{ type: \"text\", text: errorMessage(e) }],\n          },\n        });\n      }\n    } else send({ id, error: { code: -32601, message: \"Method not found\" } });\n  }\n}\n",
+        "provenance": "Actual uncommitted 0.8.1 agent.mts from the supplied review-task starting snapshot (_baseline/agent.mts); not a committed revision.",
+        "startLine": 70,
+        "endLine": 83,
+        "purpose": "Return the tool report with an explicit incomplete-readiness signal when applicable.",
+        "notes": [
+          {
+            "body": "The conditional object spread adds isError only when authoringCheckFailed returns true. It does not discard the report: content still contains the complete value, so the author can read the issues and fix the guide. This is signaling, not automatic correction or proof of explanatory quality.",
+            "startLine": 70,
+            "endLine": 83
+          }
+        ],
+        "variables": [
+          {
+            "name": "value",
+            "body": "The tool result, retained intact for output; only readiness failure signaling is added around it.",
+            "occurrences": [
+              {
+                "line": 72,
+                "startColumn": 14
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

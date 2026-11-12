@@ -34,5 +34,11 @@ pre, code, .symbol { font-family: var(--vscode-editor-font-family); }
 .picker-columns, .picker-columns > div:first-child, .data-grid h4 { border-color: var(--vscode-panel-border); }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline-color: var(--vscode-focusBorder); }
 .code-card { min-width: min(430px, calc(100vw - 40px)); }
+.authored-card, .comparison-source-choices[open] { background: var(--vscode-editor-background); color: var(--vscode-foreground); border-color: var(--vscode-panel-border); }
+.comparison-column > h2 { color: var(--vscode-foreground); }
+.comparison-column > h2 small, .authored-version, .git-source-path, .authored-purpose small, .comparison-heading small, .comparison-source-choices summary, .not-applicable { color: var(--vscode-descriptionForeground); }
+.comparison-steps, .authored-purpose, .review-note-tabs { border-color: var(--vscode-panel-border); }
+.comparison-steps [aria-current="step"] { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+.review-note-tabs [aria-pressed="true"] { color: var(--vscode-textLink-foreground); border-bottom-color: var(--vscode-focusBorder); }
 .source-token { cursor: context-menu; }
 .source-token:hover { text-decoration: underline; text-decoration-color: var(--vscode-textLink-foreground); }

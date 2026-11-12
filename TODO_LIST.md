@@ -23,6 +23,8 @@ Scores are relative estimates, not time commitments. Scope assumptions are calle
 
 Every task has a `blocked by` field. `none` means no unfinished prerequisite prevents starting that task. Named tickets are required prerequisites, not related work or a preferred order. Completed prerequisites no longer block. Technical readiness alone is not permission to implement. The current run authorizes ticket-6 plus unfinished, unblocked tickets scored 4 or below: ticket-12, ticket-13, ticket-14, ticket-17, ticket-22, and ticket-23. Higher-effort and blocked tasks remain outside that grant. Ticket-16 still requires the user's own acceptance after its blocker clears. A missing product example is a scope question, not a made-up ticket dependency.
 
+The “current run” small-ticket grant above and the earlier TODO-audit-only grant are historical. The latest user request authorizes source integration of the accepted B review workflow into main, temporary-viewer activation with a real comparison walkthrough, and separate review-enabled worktrees for every unfinished non-blocked ticket: 16, 18, 19, 20, 21, 24, 28, 29, 30, 31 and 32. This does not authorize automatically integrating those workers, application commits, installed-host replacement or claiming human acceptance. Ticket-16 is session preparation until the user accepts; ticket-24 still needs a concrete product example. Ticket-25 remains blocked.
+
 ## Completed
 
 - [x] ticket-1. Convert to TypeScript.
@@ -139,12 +141,13 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - External agents can already review source and publish source-linked notes. A dedicated review workflow still needs explicit scope, structured findings, reviewed-source fingerprints and finding status.
   - Assumes current-source review, not a complete Git/PR diff-review system or automatic fixes. See the inline review-comments item below for that interaction.
   - A useful first review increment is one real Codepath change with explicit before/after source snapshots and explanations of the changed behavior: approximately **5/10**. Do not assume a Git commit baseline exists, or turn this into a full PR platform.
+  - Audit status: the safe read-only Git comparison provider exists in isolation. The user rejected its file-browser UI and approved prototype B: parallel whole walkthrough columns, Before left/After right, independently flexible cards with each side's own title, purpose, Notes and named Variables. The reviewed B implementation, including immutable-source integrity, record/deletion-headroom budgets, incremental attachment expansion and bounded projection, is now source-integrated into main with Markdown/function context retained; uncommitted and not installed. The temporary review viewer now serves B with a seven-step admitted-Git comparison guide; existing saved data was preserved. It is not installed into the user's actual VS Code host. Its first increment is not human acceptance of the broader ticket or permission for a findings/approval platform. The ticket-19 worker validates/polishes this existing first increment rather than rebuilding it.
 
 - [ ] ticket-20. Support AI conversation at code blocks/lines — **8/10 · High effort**.
-  - blocked by: ticket-13.
-  - Reuse ticket-13's durable block/line attachments for persistent conversation context rather than creating a competing anchor system.
-  - Notes exist, but conversations do not. Needs an integration with the chosen agent, line/block anchors, persistent threads, context disclosure, response delivery, cancellation and stale-context handling.
-  - Existing MCP access lets an agent call Codepath; it does not let Codepath initiate a chat with that agent.
+  - blocked by: none.
+  - Reuse ticket-13's completed durable block/line attachments for persistent conversation context rather than creating a competing anchor system.
+  - Audit status: persistent discussions, Pi OAuth integration, explicitly approved range edits/native unsaved-buffer edits and clearer Request edit UX are implemented only in an isolated increment. They are not integrated, accepted or released; do not create duplicate implementation tickets. Remaining integration/acceptance effort needs reassessment rather than treating this original estimate as eight points of missing code.
+  - Main's MCP access lets an agent call Codepath; initiating chat is isolated work. No real paid product model prompt or response-quality verification has occurred; credentials, entitlement and paid-use claims remain unverified.
 
 - [ ] ticket-21. Ensure notes are updated as code is updated — **8/10 · High effort**.
   - blocked by: none.
@@ -170,8 +173,8 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - Needs a concrete example before settling scope. If this means runtime stack frames instead, estimate **9/10**; existing checkpoint events cannot reconstruct a full stack.
 
 - [ ] ticket-25. Add the `+` inline code-review comments functionality — **9/10 · Very high effort for the full workflow**.
-  - blocked by: ticket-13, ticket-19, ticket-20.
-  - These blockers apply to the full workflow: durable attachments, review batches/status, and agent discussion. The local button/draft subset can start independently, but does not complete this ticket. General inline code editing in ticket-18 is not required merely to preview and apply an explicitly approved patch.
+  - blocked by: ticket-19, ticket-20.
+  - Ticket-13's durable attachments are complete. The remaining blockers apply to the full workflow: review batches/status and agent discussion. The local button/draft subset can start independently, but does not complete this ticket. General inline code editing in ticket-18 is not required merely to preview and apply an explicitly approved patch.
   - After clicking **Submit for review**, send the comments and selected source context to the AI to discuss and/or propose changes.
   - The `+` button and local inline comment drafts alone are approximately **3/10**.
   - The full workflow needs durable line anchors, a review batch, agent transport, replies/status, source-version checks, and safe proposed-edit preview/application with explicit approval and undo. Discussion-only submission is smaller than adding code changes too.
@@ -180,18 +183,46 @@ These remain useful candidates, but are not all prerequisites for the self-learn
 - [x] ticket-26. Support Markdown in Notes and Variables.
   - blocked by: none.
   - Both body reading areas render the documented safe subset with raw syntax retained in editors/storage/history; card purposes, classifications, attachments and guards are unchanged.
-  - Integrated into main, uncommitted and not installed. The user accepted Markdown rendering; the reported clipped footer is fixed and checked across constrained layouts and 100/125/200% layout zoom.
+  - Source is committed in main; not installed. The user accepted Markdown rendering; the reported clipped footer is fixed and checked across constrained layouts and 100/125/200% layout zoom.
   - Actual Chrome and disposable native-webview checks cover formatting, hostile HTML/URLs, resource blocking, raw editing and independent drafts. Browser checks also cover explicit safe links and full reload/service restart. Native external-browser launch remains unverified.
 
 - [x] ticket-27. Show the containing function name inside each card's code pane.
   - blocked by: none.
-  - User accepted the corrected implementation and authorized integration into main; integrated uncommitted and not installed.
+  - User accepted the corrected implementation and authorized integration into main; source is now committed in main and not installed.
   - Partial ranges spanning nested callbacks identify their common containing function; current source names remain independent of stale explanations. Genuinely ambiguous, unsupported or unavailable source stays explicit; Go inference remains conservative.
 
 - [ ] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
   - blocked by: none.
   - The user rejected a diagram of saved card order. Show source-supported calls, decisions, branches and loops linked to the relevant cards; unresolved connections must remain explicit.
   - Corrected source-bound authored Flow is available in the isolated viewer, with card navigation and explicit unresolved connections. Parent browser/native, source-binding, draft and ownership checks passed; not integrated into main and awaiting user acceptance.
+
+## Reliability and tooling gaps found in the TODO audit
+
+These address gaps visible in maintained source/tests, not missing implementations already owned by isolated feature work. The latest user request authorizes their implementation in separate review-enabled worktrees, not automatic integration into main. They do not replace ticket-16's human acceptance gate.
+
+- [ ] ticket-29. Make rejected ordinary saves leave no in-memory changes — **4/10 · Moderate**.
+  - blocked by: none.
+  - `workspace.mts` mutates ordinary walkthroughs, plain notes, focus and runs before `save()` writes/renames; `save()` also advances the workspace revision before I/O. Unlike reviewed annotations and deletion, those branches have no rollback. A failed request can therefore leave unsaved changes visible or include them in a later successful save.
+  - Apply the existing prospective-state/commit-or-rollback pattern to these operations, including global/path revisions, run retention and focus. Preserve single-owner fencing and annotation/source checks; this is not another ticket-6 ownership redesign or the comparison candidate's budget fix.
+  - Acceptance: disposable public-operation tests force write and rename failures for create/update, plain-note add, focus and run capture. Reads/revisions and persisted bytes remain unchanged after rejection; a subsequent successful operation and reopen must not contain the rejected work. Retain existing annotation/deletion rollback tests and report owned temporary-file cleanup failures honestly.
+
+- [ ] ticket-30. Provide validated local workspace backup and explicit recovery — **6/10 · Moderate**.
+  - blocked by: none.
+  - `openWorkspace` reads the sole `workspace.json` directly; malformed/unsupported data prevents startup, with no product backup/recovery path. Current corruption tests establish refusal and reservation cleanup, not recovery. Valuable local guides/notes are ignored by Git and are not in a fresh clone.
+  - Keep a bounded last-known-good backup with private permissions and an explicit owner-safe recovery operation/runbook. Preserve the damaged original for diagnosis; validate a selected backup before restoration and refuse recovery while another writer owns the folder. Never silently reset to an empty demo or merge files into a running owner's snapshot.
+  - Acceptance: disposable fixtures cover malformed/truncated primary, invalid/missing backup, unsupported future format, interrupted replacement and recovery failure without overwriting the original. Round-trip supported older format-1 fixtures without dropping IDs, note history/classification/attachments, runs or optional feature data; any required upgrade must be explicit, backed up and tested, not an automatic source rebind/re-review. Exclude connection/auth stores and captured-data sharing/redaction tooling; document crash/power-loss limits rather than claiming durability from rename alone.
+
+- [ ] ticket-31. Recover unsaved explanation drafts without silently rebinding source — **6/10 · Moderate**.
+  - blocked by: none.
+  - Ordinary note text is component state and is reset on step selection; reviewed explanation drafts survive polling/navigation only while their React owner survives. Closing/reloading the browser or native panel loses them. Reading-position persistence intentionally excludes drafts and must keep doing so.
+  - Add separate, bounded private local recovery for plain notes, card purposes, block Notes and Variables, with explicit discard/retention behavior. Scope by canonical workspace, walkthrough, step, editor target and original reviewed source/revision; preserve independent selections and recreated-draft identity. Do not include AI questions, proposed source edits, OAuth/connection credentials or native editor buffers in this increment.
+  - Acceptance: actual browser reload and disposable native dispose/reopen restore separate drafts without saving them as notes. Changed/deleted source or targets require explicit review/reselection or deliberate discard, never a silent new binding. Held old save replies cannot clear a newer/recreated draft; storage failure, quota/retention limits and two workspaces cannot lose or cross-attach text. Keep draft content out of reading-context payloads and diagnostic logs.
+
+- [ ] ticket-32. Automate clean-checkout and packaged cross-feature release verification — **6/10 · Moderate**.
+  - blocked by: none.
+  - There is no repository CI workflow. The pre-commit hook runs staged checks/typecheck/unit tests, while real browser/native suites are separate commands. VSIX allowlist tests use fixture files; testing the unpacked real bundle without neighboring dependencies is possible but manual. Existing per-feature passes do not verify a combined release artifact.
+  - Add a repeatable CI/local verification entry point: locked clean install, declared Node 22/24 checks, typecheck/lint/unit tests, serial browser regressions and an actual packaged/unpacked VSIX smoke test in a disposable desktop host without checkout `node_modules`. Include source discovery, authoring readiness, Markdown/function context, reading/draft races and source/revision guards; register isolated discussion/Flow/comparison checks as those features integrate, not by auto-merging them.
+  - Acceptance: failures fail the job; unavailable Chrome/VS Code/Go checks are reported as unrun, not green. Retain bounded sanitized failure artifacts, never private workspace/auth contents; no publish/install into the user's host or real model calls. Declare tested OS/VS Code versions and add filesystem/ownership/launch smoke checks for intended Linux/Windows support, or state those hosts remain unverified. Remote/virtual/web support is not implied. Handle existing formatting debt explicitly without a mass rewrite. This is automated release readiness, not ticket-16 acceptance or proof of model quality.
 
 ## Effort and priority summary
 

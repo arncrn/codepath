@@ -47,6 +47,12 @@ export function selectedSourceRange(
   )
     return null;
   const range = selection.getRangeAt(0);
+  if (
+    [
+      ...container.querySelectorAll("[data-source-gap],[data-source-hunk]"),
+    ].some((node) => range.intersectsNode(node))
+  )
+    return null;
   function position(node: Node, offset: number) {
     const element = node instanceof Element ? node : node.parentElement;
     const code = element?.closest<HTMLElement>("code[data-source-line]");

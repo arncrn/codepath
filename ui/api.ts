@@ -24,6 +24,59 @@ export function getProjectOverview(walkthroughId?: string): Promise<Overview> {
     ? invokeWorkspaceTool("project_overview", { walkthroughId })
     : request<Overview>("/api/state");
 }
+export function listComparisonWalkthroughs() {
+  return invokeWorkspaceTool("list_comparison_walkthroughs", {});
+}
+export function getComparisonWalkthrough(id: string) {
+  return invokeWorkspaceTool("get_comparison_walkthrough", { id });
+}
+export function createComparisonWalkthrough(
+  input: ToolArgs["create_comparison_walkthrough"]
+) {
+  return invokeWorkspaceTool("create_comparison_walkthrough", input);
+}
+export function saveWalkthroughComparisonNote(
+  input: ToolArgs["save_walkthrough_comparison_note"]
+) {
+  return invokeWorkspaceTool("save_walkthrough_comparison_note", input);
+}
+export function deleteWalkthroughComparisonNote(
+  input: ToolArgs["delete_walkthrough_comparison_note"]
+) {
+  return invokeWorkspaceTool("delete_walkthrough_comparison_note", input);
+}
+export function checkGitComparison(listId: string) {
+  return invokeWorkspaceTool("check_git_comparison", { listId });
+}
+export function listGitBranches() {
+  return invokeWorkspaceTool("list_git_branches", {});
+}
+export function listGitChanges(input: ToolArgs["list_git_changes"]) {
+  return invokeWorkspaceTool("list_git_changes", input);
+}
+export function listGitExplanations(input: ToolArgs["list_git_explanations"]) {
+  return invokeWorkspaceTool("list_git_explanations", input);
+}
+export function getGitViewed(listId: string) {
+  return invokeWorkspaceTool("get_git_viewed", { listId });
+}
+export function setGitViewed(input: ToolArgs["set_git_viewed"]) {
+  return invokeWorkspaceTool("set_git_viewed", input);
+}
+export function clearGitViewed(input: ToolArgs["clear_git_viewed"]) {
+  return invokeWorkspaceTool("clear_git_viewed", input);
+}
+export function getGitFile(input: ToolArgs["get_git_file"]) {
+  return invokeWorkspaceTool("get_git_file", input);
+}
+export function saveComparisonNote(input: ToolArgs["save_comparison_note"]) {
+  return invokeWorkspaceTool("save_comparison_note", input);
+}
+export function deleteComparisonNote(
+  input: ToolArgs["delete_comparison_note"]
+) {
+  return invokeWorkspaceTool("delete_comparison_note", input);
+}
 export function getWalkthrough(walkthroughId: string) {
   return invokeWorkspaceTool("get_walkthrough", { id: walkthroughId });
 }
@@ -90,6 +143,9 @@ export function getRun(runId: string) {
 }
 export function listRuns(walkthroughId: string) {
   return invokeWorkspaceTool("list_runs", { walkthroughId });
+}
+export function deleteNote(note: ToolArgs["delete_note"]) {
+  return invokeWorkspaceTool("delete_note", note);
 }
 export function addNote(note: ToolArgs["add_note"]) {
   return invokeWorkspaceTool("add_note", note);

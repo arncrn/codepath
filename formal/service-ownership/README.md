@@ -1,6 +1,34 @@
 # Service ownership and accepted saves
 
-## Result
+## Isolated accepted A coverage / Viewed correspondence
+
+Parent and worker read the full maintained model/config/coverage/AST/replays and actual service/helper/workspace, exact baseline deltas and new progress/Git admission source before fingerprints. Parent approved the semantic correspondence; `syncCommit:null` records unmatched uncommitted candidate source, not an invented commit. The helper and reservation/discovery/load/readiness/publication/drain/token-release order are unchanged. New marks await bounded fresh Git admission; all final raw-source checks follow all awaits, immediately followed by the service owner fence and synchronous CURRENT-state progress CAS/save/rename/rollback. Clear remains source-independent synchronous invoke. Read projections and reopen validation add no writer, source migration or yield. New AST assertions add the mark fence and synchronous current-state commit without removing earlier checks. No model invariant, transition or finite bound changed.
+
+Serial A main and mutation checks pass all three invariants in **893 states**, plus the **709-state** failed-probe freshness schedule, with real HTTP/process/disk replay agreement. All three deliberate scratch mutations are caught with the expected violations/shortest paths (16/20, 25 and 13 transitions; constrained freshness 27). All six statechart cases have the expected verdicts: full graph 893, protocol display 460, mutation graphs 3065/1171/949 and constrained freshness 709. The full passing graph exceeds the 500-state drawing budget; the display is not reduced proof scope. No earlier/new assertion or finite promise was weakened. Inventory completeness, exact progress/CAS/budgets, diff alignment, source truth, annotations and DOM/native behavior remain separate runtime coverage, not consequences of finite ownership.
+
+## Current main composition — parent synchronization complete
+
+The candidate composes accepted B onto the exact 149-file current-main working snapshot, retaining Markdown, lexical function context and layout fixes. Parent reviewed the complete service/helper/workspace/build and pure snapshot-projection delta before refreshing exact correspondence fingerprints. Covered ownership/Git implementations and all AST assertions match verified B; current and historical function labels derive from each side's actual raw source without persistence or rebinding. `syncCommit:null` is retained because the combined working source has no matching application commit.
+
+Parent serial main/mutation checks pass all three invariants in **893 states**, constrained freshness in **709 states**, with actual HTTP/process/disk replay agreement. All three deliberate scratch mutations and all six statechart cases have their expected verdicts. No model/property/bound or prior/new AST assertion was weakened. Runtime content/Git/Markdown/function-context/editor tests and human acceptance remain separate from finite ownership claims.
+
+The service/workspace ownership implementation is unchanged from accepted B. Immutable-side lexical projection adds synchronous parsing and read metadata only, with no persistence writer, await, seal stamping or live-source rebinding. The conservative expanded-view budget includes the new projected metadata. Runtime Git/content/editor/Markdown tests remain separate from ownership claims.
+
+## Previous accepted B synchronization (not this composition)
+
+Parent reviewed the exact 168-file `_review-before-cards-B` checkpoint against the complete service/helper/workspace delta, new authored module, Git batch admission and build emission. The helper is unchanged. Only immutable query/file/binding identity crosses Git awaits; after all selected raw-source checks the service immediately re-admits ownership and invokes synchronous CURRENT-state create/note commits. Prospective budgets, source seals and initial note factories add no await or filesystem writer. Existing synchronous save/rename/rollback, handler/Git drainage, token-owned cleanup and reservation lifetime remain intact. New AST checks enforce both new post-Git fences and synchronous methods without removing earlier assertions. Fingerprints were refreshed only after semantic/AST review; `syncCommit:null` records unmatched uncommitted code.
+
+Parent ran main and mutation checks serially: all three invariants pass in **893 states**, constrained failed-probe freshness in **709 states**, with actual HTTP/process/disk replay agreement. All three scratch mutations and all six statechart cases have their expected outcomes. No property/transition/bound was weakened. Parent source/budget/corruption/projection probes and actual browser/native tests separately cover content/annotation behaviour; finite verification remains ownership-only, not source/prose/Git/editor correctness or human acceptance.
+
+## Previous Git-reader synchronization status
+
+The independent Git-reader correction has had manual source/model correspondence review and the maintained AST checks pass with all three constants true. `coverage.json` records its exact source/build hashes with `syncCommit: null`. **TLC/main/mutation checks have not been rerun for this delta**: the parent will run them serially after source review. No TLA+ transition, bound or property has changed. Git/content/note behavior remains separate runtime coverage, not an expansion of the finite proof.
+
+The service still reserves before writable load. The new asynchronous Git admission is followed immediately by owner admission before a synchronous current-state comparison-note commit/rename/rollback. Ordinary/comparison note deletion is synchronous metadata mutation, not source review. Git subprocesses are cancelled/drained and tracked handlers finish cleanup before token cleanup/reservation release. AST checks add these seams without relaxing earlier checks.
+
+The audit fixes use the exact **159-file** `_review-git-before-audit-fixes` checkpoint, distinct from the earlier transfer baseline. Service/helper/workspace bytes are unchanged. Manual correspondence and AST checks were completed before refreshing the build mirror: the only new emitted module is pure built-in Git normalization, and cooperative Git preprocessing yields remain inside drained HTTP handlers. No await enters save/rename/rollback, no persisted draft metadata is added, and no model property/bound is weakened. Runtime regressions cover the 100k-candidate event-loop budget and close drainage; these are not new finite-model claims. TLC/main/mutations remain for the parent's serial follow-up.
+
+## Previous completed finite result
 
 All three safety invariants hold in the updated finite model and actual-source replays. The model has 893 reachable states. The initial maintenance run stopped on source-fingerprint drift, before TLC. That was verification drift, not a product failure.
 
@@ -25,6 +53,10 @@ The main and mutation checks and all six statechart cases pass with the same bou
 ## Unreleased authoring-readiness synchronization
 
 The main/mutation checks and all six statechart cases pass after this review, with the same 893-state baseline, 709-state freshness check and expected mutation counterexamples. The new workspace branch checks the saved revision and validates a hydrated walkthrough without saving, changing hashes or marking explanations reviewed. Shared attachment predicates and the validator are synchronous and read-only; service/helper ownership bytes and the existing write-admission/save/drain ordering are unchanged. Authoring/content correctness remains outside the finite ownership model and is checked through separate real client/browser tests. The current workspace/build edits are uncommitted, so the synchronization record uses hashes and semantic/AST review with `syncCommit: null`, not the earlier commit as a false match.
+
+## Bounded change-review synchronization
+
+Reviewed the exact delta from the supplied task `_baseline`, not `git diff HEAD` (which includes earlier authoring work). The workspace adds optional immutable review data, read-only projections and one synchronous create/clone/replace/save branch with rollback. The new module has no await, source writer, subprocess or ownership operation. The build adds only its Node output entry. Service/helper bytes are unchanged; existing AST correspondence still derives all three ownership constants as true. Reservation-before-load, fresh discovery, immediate post-body write fencing, synchronous rename and drain/token-cleanup/release ordering are unchanged. Review content/retention semantics remain outside the finite new-path model. `coverage.json` records this semantic review and the new workspace/build fingerprints; no model properties were changed. The main check passes all three invariants in 893 states plus the 709-state failed-probe schedule, with actual-source replay agreement; the three scratch mutations are caught again. These are bounded ownership checks, not verification of review explanations.
 
 ## Commands and evidence
 

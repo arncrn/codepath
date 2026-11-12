@@ -13,6 +13,33 @@ A walkthrough explaining the behavior of the code currently being examined, rath
 **PR-review walkthrough**:
 A walkthrough explaining how proposed changes alter behavior relative to the pull request's target/base behavior.
 
+**Git comparison**:
+Differences between selected committed branches, or between a committed branch and the current saved working tree, without changing the checked-out branch.
+
+**Changes**:
+The source-control view separating staged, unstaged and untracked files. A partially staged file belongs to both staged and unstaged groups with different differences.
+
+**Staged changes**:
+Differences from HEAD to the index. Before the first commit, the before side is empty.
+
+**Unstaged changes**:
+Differences from the index to saved working files.
+
+**Untracked file**:
+A nonignored working file absent from the index, compared against an empty before side.
+
+**Working tree target**:
+The current saved files, including staged, unstaged and untracked work, rather than any branch's committed tip or unsaved editor buffers.
+
+**Viewed**:
+Manual reading progress for one exact selected Git source pair, not approval, correctness or explanation review. A file with staged and unstaged differences has separate pairs; every selected pair must be Viewed before that file is fully Viewed. Returning to the exact earlier paired versions/choices can recover their earlier progress.
+
+**Coverage**:
+The declared inventory scope and its completeness/unknowns. Complete allowed-path enumeration does not include ignored/nonproject paths and does not establish the changes inside restricted paths that were never inspected.
+
+**Comparison note**:
+A human annotation belonging to one side of one exact source comparison. It does not automatically follow changed source or become an ordinary walkthrough note.
+
 **Main integration**:
 Bringing changes from main into the working branch. This is distinct from a pull request landing on main.
 
@@ -23,7 +50,7 @@ An inactive walkthrough retained for later use, not a historical code snapshot. 
 An explanation whose relationship to the current source needs review because that source or its meaning has changed. Being archived and being stale are separate properties.
 
 **Function context**:
-The innermost lexical function containing a card's selected nonwhitespace current source, shown by name inside its code pane, not its authored purpose or a runtime call stack. A range spanning nested callbacks belongs to their common outer function. Current names and stale explanations are independent. Sibling functions without a common owner, top-level code and unavailable/unsupported source are explicit states.
+The innermost lexical function containing a card's selected nonwhitespace current source, shown by name inside its code pane, not its authored purpose or a runtime call stack. A range spanning nested callbacks belongs to their common outer function. Current names and stale explanations are independent. Comparison cards instead project each selected range against its own immutable raw historical side, never the live file's scopes. Sibling functions without a common owner, top-level code and unavailable/unsupported source are explicit states.
 
 **Card explanation**:
 A concise explanation of the overall purpose of the code shown in a card.

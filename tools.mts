@@ -102,7 +102,343 @@ const define = (
     openWorldHint: false,
   },
 });
+const reviewSide: Schema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    file: str("Relative eligible source filename"),
+    content: str(
+      "Explicit full-file source content, not numbered read_source output; at most 128 KiB"
+    ),
+    provenance: str(
+      "Author-reported origin, e.g. supplied original file or explicitly identified commit. Not independently verified."
+    ),
+    startLine: { type: "integer", minimum: 1 },
+    endLine: { type: "integer", minimum: 1 },
+    purpose: str("Concise card purpose for this side"),
+    notes: {
+      type: "array",
+      maxItems: 40,
+      items: {
+        type: "object",
+        properties: {
+          body: str("Block behavior"),
+          startLine: { type: "integer", minimum: 1 },
+          endLine: { type: "integer", minimum: 1 },
+        },
+        required: ["body", "startLine", "endLine"],
+        additionalProperties: false,
+      },
+    },
+    variables: {
+      type: "array",
+      maxItems: 40,
+      items: {
+        type: "object",
+        properties: {
+          name: str("Exact whole identifier"),
+          body: str("What it represents and why"),
+          occurrences: {
+            type: "array",
+            maxItems: 40,
+            items: {
+              type: "object",
+              properties: {
+                line: { type: "integer", minimum: 1 },
+                startColumn: { type: "integer", minimum: 0 },
+              },
+              required: ["line", "startColumn"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["name", "body", "occurrences"],
+        additionalProperties: false,
+      },
+    },
+    notApplicable: {
+      type: "object",
+      properties: {
+        notes: str("Why block Notes are inapplicable"),
+        variables: str("Why Variables are inapplicable"),
+      },
+      additionalProperties: false,
+    },
+  },
+  required: [
+    "file",
+    "content",
+    "provenance",
+    "startLine",
+    "endLine",
+    "purpose",
+    "notes",
+    "variables",
+  ],
+};
+const authoredSide: Schema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    title: str("Meaningful title specific to this source side"),
+    purpose: str(
+      "Explicit authored purpose, not inferred from a filename or copied across sides"
+    ),
+    startLine: { type: "integer", minimum: 0 },
+    endLine: { type: "integer", minimum: 0 },
+    notes: { ...reviewSide.properties!.notes, maxItems: undefined },
+    variables: { ...reviewSide.properties!.variables, maxItems: undefined },
+    notApplicable: reviewSide.properties!.notApplicable,
+  },
+  required: ["title", "purpose", "startLine", "endLine", "notes", "variables"],
+};
 export const tools = [
+  define(
+    "list_git_explanations",
+    "Read lightweight optional authored-step links for exactly matching full paired source binding and selected query. Does not hydrate or rebind walkthroughs, nor prove inventory coverage.",
+    {
+      query: { type: "object" },
+      fileId: str("Git file ID"),
+      binding: str("Full exact Git paired binding"),
+    },
+    ["query", "fileId", "binding"]
+  ),
+  define(
+    "get_git_viewed",
+    "Read manual Viewed progress for exactly the source pairs inspected by this Git list. No source or notes are reviewed; unavailable exact identity disables marking.",
+    { listId: str("Current Git list ID") },
+    ["listId"]
+  ),
+  define(
+    "set_git_viewed",
+    "Manually mark one exact Git source pair Viewed, NOT approval. Server freshly checks both raw versions and comparison choices; changed/forged versions and stale progress revisions reject. Exact old versions may recover old status.",
+    {
+      query: {
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["changes", "compare"] },
+          base: str("Local base choice"),
+          target: str("Local target choice or WORKING_TREE"),
+        },
+        required: ["mode"],
+        additionalProperties: false,
+      },
+      fileId: str("Selected Git pair ID"),
+      identity: str("Exact identity from get_git_viewed"),
+      expectedRevision: { type: "integer", minimum: 0 },
+    },
+    ["query", "fileId", "identity", "expectedRevision"],
+    false
+  ),
+  define(
+    "clear_git_viewed",
+    "Clear only Viewed progress for an exact stored identity/revision, even when source is gone or stale. Retains revision tombstone; never changes notes or source.",
+    {
+      identity: str("Exact stored Viewed identity"),
+      expectedRevision: { type: "integer", minimum: 1 },
+    },
+    ["identity", "expectedRevision"],
+    false
+  ),
+  define(
+    "save_walkthrough_comparison_note",
+    "Create or edit one side/card's human annotation on its exact authored paired source. Server freshly admits the stored Git query; expiry needs no human session maintenance. Either side changed rejects, preserving drafts; never reattaches. IDs/history retained. Attachments select exact excerpt bytes; named Variables require whole identifiers, not lexical proof.",
+    {
+      walkthroughId: str("Authored walkthrough"),
+      stepId: str("Paired step ID"),
+      binding: str("Stored exact paired binding"),
+      side: { type: "string", enum: ["before", "after"] },
+      expectedRevision: { type: "integer", minimum: 0 },
+      noteId: str("Existing scoped note to edit"),
+      body: str("Human annotation"),
+      author: str("Author"),
+      attachments,
+      variableName: str("Optional exact whole identifier"),
+    },
+    [
+      "walkthroughId",
+      "stepId",
+      "binding",
+      "side",
+      "expectedRevision",
+      "body",
+      "author",
+      "attachments",
+    ],
+    false
+  ),
+  define(
+    "delete_walkthrough_comparison_note",
+    "After confirmation remove one authored-card annotation without needing source availability. Retain complete identity/history. No source review or rebinding.",
+    {
+      walkthroughId: str("Authored walkthrough"),
+      stepId: str("Paired step ID"),
+      scope: str("Exact card annotation scope"),
+      noteId: str("Active note"),
+      expectedRevision: { type: "integer", minimum: 0 },
+    },
+    ["walkthroughId", "stepId", "scope", "noteId", "expectedRevision"],
+    false,
+    true
+  ),
+  define(
+    "create_comparison_walkthrough",
+    "Author paired walkthrough steps bound to one admitted Git query. Read list_git_changes and get_git_file first. Source comes only from Git, never caller text. Supply independent side titles/purposes, attached block Notes and named whole-identifier Variables, or explicit genuinely inapplicable reasons. Empty sides require range 0..0 and both N/A reasons. 1 MiB request, 2 MiB saved, 400 lines/excerpt; no fixed pair-count cap. No lexical/prose/behavior proof, no automatic explanation generation or later source rebinding.",
+    {
+      title: str("Walkthrough title"),
+      listId: str("One admitted source query"),
+      steps: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            id: str("Stable pairing ID"),
+            title: str("Shared navigation label"),
+            fileId: str("Admitted file"),
+            binding: str("Exact paired Git source binding"),
+            before: authoredSide,
+            after: authoredSide,
+          },
+          required: ["id", "title", "fileId", "binding", "before", "after"],
+        },
+      },
+    },
+    ["title", "listId", "steps"],
+    false
+  ),
+  define(
+    "list_comparison_walkthroughs",
+    "List explicitly authored comparison walkthroughs without refreshing or mutating their source."
+  ),
+  define(
+    "get_comparison_walkthrough",
+    "Read the stored authored versions, purposes and scoped annotations. These are not current branch tips. No Git refresh, migration or mutation.",
+    { id: str("Walkthrough ID") },
+    ["id"]
+  ),
+  define(
+    "check_git_comparison",
+    "Check whether resolved refs/index/file metadata have changed since listing. Advisory stale feedback only; source bytes are revalidated by get/save operations.",
+    { listId: str("Comparison list") },
+    ["listId"]
+  ),
+  define(
+    "list_git_branches",
+    "Read local branch tips and HEAD. Never checks out or reads another worktree's working files."
+  ),
+  define(
+    "list_git_changes",
+    "Read a page of Changes (HEAD to index, index to saved files, untracked) or local-branch comparison. Follow nextCursor until complete, including empty pages. WORKING_TREE includes staged, unstaged and untracked saved files. Read-only; no clean filters or external diff.",
+    {
+      query: {
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["changes", "compare"] },
+          base: str(
+            "HEAD or exact refs/heads/... returned by list_git_branches"
+          ),
+          target: str("Local ref, HEAD, or WORKING_TREE"),
+        },
+        required: ["mode"],
+        additionalProperties: false,
+      },
+      cursor: str("Query-bound page continuation"),
+    },
+    ["query"]
+  ),
+  define(
+    "get_git_file",
+    "Read exact before/after source and hunks for an admitted changed file. Files/index/branch movement require refresh. Does not write source or metadata.",
+    { listId: str("From list_git_changes"), fileId: str("From the file list") },
+    ["listId", "fileId"]
+  ),
+  define(
+    "save_comparison_note",
+    "Create or edit a human annotation attached to one exact side of a Git comparison. Both sources, scope and annotation revision must still match; never writes ordinary walkthrough notes or source. Retains IDs/history on edit.",
+    {
+      listId: str("Comparison list"),
+      fileId: str("Selected file"),
+      binding: str("Exact comparison binding returned by get_git_file"),
+      side: { type: "string", enum: ["before", "after"] },
+      expectedRevision: { type: "integer", minimum: 0 },
+      noteId: str("Existing note ID to edit, omit to create"),
+      body: str("Human annotation"),
+      author: str("Author"),
+      attachments,
+      variableName: str(
+        "Optional exact whole identifier; attachments must select that name"
+      ),
+    },
+    [
+      "listId",
+      "fileId",
+      "binding",
+      "side",
+      "expectedRevision",
+      "body",
+      "author",
+      "attachments",
+    ],
+    false
+  ),
+  define(
+    "delete_comparison_note",
+    "After confirmation remove one active comparison annotation, retaining identity/history. Source need not still be available; this is not re-review.",
+    {
+      scope: str("Annotation scope from get_git_file"),
+      noteId: str("Note ID"),
+      expectedRevision: { type: "integer", minimum: 0 },
+    },
+    ["scope", "noteId", "expectedRevision"],
+    false,
+    true
+  ),
+  define(
+    "create_change_review",
+    "Legacy compatibility only, not the Git reader workflow. Capture an immutable bounded before/after review (one or more cards, 512 KiB total; no fixed card-count cap). Explicit source on both sides; after must exactly match live saved source. No Git baseline required or inferred. Include former behavior, changed behavior and reason plus attached Notes/named Variables or explicit inapplicability reasons. No update/auto-fix operation.",
+    {
+      id: str("Optional unique review ID; existing IDs cannot be replaced"),
+      title: str("Selected change"),
+      cards: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            id: str("Unique card ID"),
+            title: str("Change location"),
+            beforeBehavior: str("Former behavior"),
+            afterBehavior: str("Changed behavior"),
+            reason: str("Why the change is needed"),
+            before: reviewSide,
+            after: reviewSide,
+          },
+          required: [
+            "id",
+            "title",
+            "beforeBehavior",
+            "afterBehavior",
+            "reason",
+            "before",
+            "after",
+          ],
+        },
+      },
+    },
+    ["title", "cards"],
+    false
+  ),
+  define(
+    "list_change_reviews",
+    "Legacy compatibility: list saved immutable records. The reading interface uses Git changes/branch comparison instead."
+  ),
+  define(
+    "get_change_review",
+    "Legacy compatibility: read immutable before/after source and explanations, fingerprints/provenance and separate current live-source match/changed/unavailable status. Never refreshes saved snapshots.",
+    { id: str("Review ID") },
+    ["id"]
+  ),
   define(
     "project_overview",
     "Read walkthrough/run summaries and lightweight source-discovery progress. Use list_source_files/find_symbols for paged discovery and inspect_source for one file; overview does not parse the repository.",
@@ -294,6 +630,19 @@ export const tools = [
     },
     ["walkthroughId", "stepId", "body", "author"],
     false
+  ),
+  define(
+    "delete_note",
+    "After confirmation, remove one active note from Notes/Variables. Retains stored identity and history; does not review source and works for missing/stale source.",
+    {
+      walkthroughId: str("Path ID"),
+      stepId: str("Step ID"),
+      noteId: str("Note ID"),
+      expectedRevision: { type: "integer", minimum: 1 },
+    },
+    ["walkthroughId", "stepId", "noteId", "expectedRevision"],
+    false,
+    true
   ),
   define(
     "add_reviewed_note",

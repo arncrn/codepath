@@ -77,7 +77,9 @@ export interface SourceOverview {
   warnings: string[];
   version: string;
 }
-export interface ResolvedSource {
+// Immutable Git/legacy snapshots retain raw code only. Lexical context is a
+// derived read projection, never a stored rebind or part of the source seal.
+export interface SourceCode {
   file: string;
   symbol?: string;
   startLine: number;
@@ -86,6 +88,8 @@ export interface ResolvedSource {
   hash: string;
   fileHash: string;
   lines: string[];
+}
+export interface ResolvedSource extends SourceCode {
   functionContext: FunctionContext;
 }
 export type Evidence = "source" | "inferred";
@@ -211,12 +215,247 @@ export interface Focus {
   stepId: string;
   nonce: string;
 }
+export interface ReviewSideInput {
+  file: string;
+  content: string;
+  provenance: string;
+  startLine: number;
+  endLine: number;
+  purpose: string;
+  notes: { body: string; startLine: number; endLine: number }[];
+  variables: {
+    name: string;
+    body: string;
+    occurrences: { line: number; startColumn: number }[];
+  }[];
+  notApplicable?: { notes?: string; variables?: string };
+}
+export interface ReviewCardInput {
+  id: string;
+  title: string;
+  beforeBehavior: string;
+  afterBehavior: string;
+  reason: string;
+  before: ReviewSideInput;
+  after: ReviewSideInput;
+}
+export interface ChangeReviewInput {
+  id?: string;
+  title: string;
+  cards: ReviewCardInput[];
+}
+export interface ReviewSnapshot {
+  file: string;
+  content: string;
+  provenance: string;
+  fingerprint: string;
+  code: SourceCode;
+  purpose: string;
+  notes: Note[];
+  notApplicable?: { notes?: string; variables?: string };
+}
+export interface ChangeReview {
+  id: string;
+  title: string;
+  capturedAt: string;
+  fingerprint: string;
+  cards: (Omit<ReviewCardInput, "before" | "after"> & {
+    before: ReviewSnapshot;
+    after: ReviewSnapshot;
+  })[];
+}
+export interface ChangeReviewView extends ChangeReview {
+  live: {
+    cardId: string;
+    file: string;
+    status: "matches-after" | "changed" | "unavailable";
+    fingerprint?: string;
+    error?: string;
+  }[];
+}
+export type ChangeReviewSummary = Pick<
+  ChangeReview,
+  "id" | "title" | "capturedAt" | "fingerprint"
+>;
+export type GitQuery =
+  { mode: "changes" } | { mode: "compare"; base: string; target: string };
+export type GitGroup = "staged" | "unstaged" | "untracked" | "compare";
+export interface GitChangedFile {
+  id: string;
+  file: string;
+  oldFile?: string;
+  group: GitGroup;
+  status: "added" | "deleted" | "modified" | "renamed" | "unavailable";
+}
+export interface GitCoverage {
+  scope: "project nonignored allowed paths";
+  allowed: {
+    scanned: number;
+    candidates: number;
+    listedPairs: number;
+    complete: boolean;
+  };
+  restricted: {
+    candidatePaths: number;
+    knownChangedPaths: number;
+    workingChanges: "unknown" | "not-selected";
+  };
+}
+export interface GitChangesPage {
+  listId: string;
+  files: GitChangedFile[];
+  complete: boolean;
+  coverage: GitCoverage;
+  nextCursor?: string;
+}
+export interface GitSourceSide {
+  label: string;
+  file: string;
+  mode: string;
+  content?: string;
+  code?: SourceCode;
+  unavailable?: string;
+}
+export interface ComparisonNote extends Note {
+  binding: string;
+  side: "before" | "after";
+  history?: (NoteRevision & { binding: string; side: "before" | "after" })[];
+}
+export interface ComparisonNotes {
+  scope: string;
+  revision: number;
+  notes: ComparisonNote[];
+}
+export interface GitFileView {
+  listId: string;
+  file: GitChangedFile;
+  binding: string;
+  scope: string;
+  before: GitSourceSide;
+  after: GitSourceSide;
+  patch: string;
+  patchMatchesRaw?: { before: boolean; after: boolean };
+  unavailable?: string;
+  annotations: ComparisonNotes;
+}
+export interface ComparisonNoteInput {
+  listId: string;
+  fileId: string;
+  binding: string;
+  side: "before" | "after";
+  expectedRevision: number;
+  noteId?: string;
+  body: string;
+  author: string;
+  attachments: SourceAttachment[];
+  variableName?: string;
+}
+export interface AuthoredComparisonSide extends Omit<
+  ReviewSideInput,
+  "file" | "content" | "provenance"
+> {
+  title: string;
+}
+export interface ComparisonWalkthroughInput {
+  title: string;
+  listId: string;
+  steps: {
+    id: string;
+    title: string;
+    fileId: string;
+    binding: string;
+    before: AuthoredComparisonSide;
+    after: AuthoredComparisonSide;
+  }[];
+}
+export type AdmittedGitFile = Omit<GitFileView, "annotations">;
+export interface SavedComparisonStep {
+  id: string;
+  title: string;
+  fileId: string;
+  binding: string;
+  before: Pick<
+    AuthoredComparisonSide,
+    "title" | "purpose" | "startLine" | "endLine" | "notApplicable"
+  >;
+  after: SavedComparisonStep["before"];
+  annotations: ComparisonNotes;
+}
+export interface SavedComparisonWalkthrough {
+  // Versioned accidental-corruption seal, authored once; never stamped on read.
+  sourceSeal: string;
+  id: string;
+  title: string;
+  query: GitQuery;
+  sources: Record<string, AdmittedGitFile>;
+  steps: SavedComparisonStep[];
+}
+export interface ComparisonWalkthroughStep extends Omit<
+  SavedComparisonStep,
+  "before" | "after"
+> {
+  before: GitSourceSide &
+    SavedComparisonStep["before"] & { code: ResolvedSource };
+  after: GitSourceSide &
+    SavedComparisonStep["after"] & { code: ResolvedSource };
+  file: GitChangedFile;
+  patch: string;
+  patchMatchesRaw?: { before: boolean; after: boolean };
+}
+export interface ComparisonWalkthrough extends Omit<
+  SavedComparisonWalkthrough,
+  "sources" | "steps" | "sourceSeal"
+> {
+  steps: ComparisonWalkthroughStep[];
+}
+export type ComparisonWalkthroughSummary = Pick<
+  ComparisonWalkthrough,
+  "id" | "title"
+> & { count: number };
+export interface WalkthroughComparisonNoteInput extends Omit<
+  ComparisonNoteInput,
+  "listId" | "fileId"
+> {
+  walkthroughId: string;
+  stepId: string;
+}
+export interface DeleteWalkthroughComparisonNoteInput {
+  walkthroughId: string;
+  stepId: string;
+  scope: string;
+  noteId: string;
+  expectedRevision: number;
+}
+export interface GitViewedRecord {
+  readonly identity: string;
+  readonly revision: number;
+  readonly viewed: boolean;
+}
+export type GitViewedPair = { readonly fileId: string } & (
+  | GitViewedRecord
+  | {
+      readonly disabledReason: string;
+      readonly identity?: never;
+      readonly revision?: never;
+      readonly viewed: false;
+    }
+);
+export interface GitViewedInput {
+  query: GitQuery;
+  fileId: string;
+  identity: string;
+  expectedRevision: number;
+}
 export interface WorkspaceState {
   format: number;
   revision: number;
   paths: SavedWalkthrough[];
   runs: Run[];
   focus: Focus | null;
+  changeReviews?: ChangeReview[];
+  comparisonNotes?: ComparisonNotes[];
+  comparisonWalkthroughs?: SavedComparisonWalkthrough[];
+  gitViewed?: GitViewedRecord[];
 }
 export interface Overview {
   root: string;
@@ -339,6 +578,28 @@ export interface AuthoringReport {
   limitation: string;
 }
 export interface ToolArgs {
+  list_git_explanations: { query: GitQuery; fileId: string; binding: string };
+  get_git_viewed: { listId: string };
+  set_git_viewed: GitViewedInput;
+  clear_git_viewed: { identity: string; expectedRevision: number };
+  save_walkthrough_comparison_note: WalkthroughComparisonNoteInput;
+  delete_walkthrough_comparison_note: DeleteWalkthroughComparisonNoteInput;
+  create_comparison_walkthrough: ComparisonWalkthroughInput;
+  list_comparison_walkthroughs: Record<string, never>;
+  get_comparison_walkthrough: { id: string };
+  check_git_comparison: { listId: string };
+  list_git_branches: Record<string, never>;
+  list_git_changes: { query: GitQuery; cursor?: string };
+  get_git_file: { listId: string; fileId: string };
+  save_comparison_note: ComparisonNoteInput;
+  delete_comparison_note: {
+    scope: string;
+    noteId: string;
+    expectedRevision: number;
+  };
+  create_change_review: ChangeReviewInput;
+  get_change_review: { id: string };
+  list_change_reviews: Record<string, never>;
   project_overview: { walkthroughId?: string };
   read_source: { file: string; startLine?: number; endLine?: number };
   inspect_source: { file: string };
@@ -368,6 +629,12 @@ export interface ToolArgs {
     body: string;
     author: string;
   };
+  delete_note: {
+    walkthroughId: string;
+    stepId: string;
+    noteId: string;
+    expectedRevision: number;
+  };
   add_reviewed_note: NoteReview;
   review_note: NoteReview & { noteId: string };
   review_explanation: SourceReview;
@@ -390,6 +657,34 @@ export interface ToolArgs {
   };
 }
 export interface ToolResults {
+  list_git_explanations: {
+    walkthroughId: string;
+    title: string;
+    stepId: string;
+    stepTitle: string;
+  }[];
+  get_git_viewed: { readonly pairs: readonly GitViewedPair[] };
+  set_git_viewed: GitViewedRecord;
+  clear_git_viewed: GitViewedRecord;
+  save_walkthrough_comparison_note: ComparisonNotes;
+  delete_walkthrough_comparison_note: ComparisonNotes;
+  create_comparison_walkthrough: ComparisonWalkthrough;
+  list_comparison_walkthroughs: ComparisonWalkthroughSummary[];
+  get_comparison_walkthrough: ComparisonWalkthrough;
+  check_git_comparison: { current: boolean };
+  list_git_branches: {
+    branches: { ref: string; name: string; oid: string }[];
+    head?: string;
+  };
+  list_git_changes: GitChangesPage;
+  get_git_file: GitFileView & {
+    functionContexts: { before: FunctionContext; after: FunctionContext };
+  };
+  save_comparison_note: ComparisonNotes;
+  delete_comparison_note: ComparisonNotes;
+  create_change_review: ChangeReviewView;
+  get_change_review: ChangeReviewView;
+  list_change_reviews: ChangeReviewSummary[];
   project_overview: Overview;
   read_source: {
     file: string;
@@ -430,6 +725,7 @@ export interface ToolResults {
   save_walkthrough: Walkthrough;
   delete_walkthrough: { id: string; deleted: boolean };
   add_note: Note;
+  delete_note: Note;
   add_reviewed_note: Note;
   review_note: Note;
   review_explanation: Walkthrough;

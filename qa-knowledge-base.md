@@ -1,5 +1,13 @@
 # Q&A Knowledge Base
 
+### Q: Why separate current Git coverage, immutable explanations and Viewed identity?
+
+**A:** A saved authored walkthrough is a selected source snapshot, not an exhaustive live inventory. Current changes enumerates every allowed candidate and reports restricted/unknown coverage separately; optional links require a matching full paired binding and query. Viewed identifies raw paired versions/modes/paths/group/choices independently of preview availability or whole-index/ref movement. The existing workspace is the single synchronous writer: fresh Git admission finishes before the final owner fence and current-state progress CAS/save/rollback. Exact old versions can recover old progress; tombstones retain revision protection after clearing. No notes migrate or become reviewed.
+
+### Q: Why verify patch/raw rows instead of computing another whole-file diff?
+
+**A:** The safe Git provider already supplies bounded real hunks. A linear verifier checks their raw text/context/coordinates and pads insertion/deletion/replacement rows without quadratic LCS or guessed normalized offsets. Unsupported mapping is explicitly plain. Authored selections use bounded selected windows; disconnected/unrelated excerpts fall back independently rather than acquiring thousands of empty rows. Shared header tracks align code origins while prose heights stay independent.
+
 ### Q: Why have both card descriptions and Notes, and why were the Notes in 00 empty?
 
 **A:** The original 00 content populated card summaries but did not add detailed Notes. The card description explains the whole function's purpose at a high level; Notes explain blocks/function calls at a medium level and individual variables at a low level, without duplicating the summary. All eight cards now have three detailed Notes each.
@@ -74,3 +82,19 @@
 ### Q: What does Repair source reference do?
 
 **A:** It reconnects a saved walkthrough card to its intended source after a file/range moves or becomes unavailable; it does not repair or edit the code. That maintenance action is separate from re-reviewing explanations and does not make old notes current. It does not belong in the branch-comparison reading interface.
+
+### Q: Why is there no fixed count cap on legacy before/after review pairs?
+
+**A:** The original eight-pair cap was an arbitrary prototype guardrail, not a domain requirement or measured threshold, and was removed at the user's request. Those legacy compatibility operations retain their source/range/byte budgets. They are no longer the reader's comparison workflow.
+
+### Q: What should Git comparisons mean now?
+
+**A:** Inspect actual differences, not manage captured reviews. Changes separates HEAD→index, index→saved file and empty→untracked. Compare uses explicit local branch tips/HEAD, optionally targeting the current saved working tree (including untracked). Equal committed branches really are equal even when working files differ; no artificial staging, commits or checkout should be used to make an example look changed. The reader has no capture/identity/provenance/live-status controls and generates no explanatory prose or AI requests.
+
+### Q: Does Delete note mean source review or loss of history?
+
+**A:** No. Confirmation removes the active entry using existing archive metadata, while preserving its ID, source binding and prior versions. It works with stale or unavailable source without stamping a new hash. Scope/revision conflicts reject rather than delete newer work. This applies to ordinary Notes/Variables and separate exact-side comparison annotations; it does not restore reader-facing archive/history panels.
+
+### Q: Can natural Git differences be shown without executing clean filters?
+
+**A:** Yes for safe built-ins. Changes uses pure text/EOL/ident conversion and working-only filemode rules for eligibility/hunks, while full-file display, attachment hashes and save admission retain exact raw source. Stored index/branch blobs remain literal. Custom filters and unsupported encodings are explicitly unknown, never guessed modifications or clean results. Only needed non-executable configuration keys and effective ignore/attribute data paths are read; repository commands are never copied or executed, even if configuration changes during a request. See README for supported rules and budgets. Red/pink remains reserved for removed diff lines, not annotation shading.

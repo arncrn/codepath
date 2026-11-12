@@ -13,6 +13,7 @@ import type {
 } from "./types.mjs";
 
 export type AnnotationOperation =
+  | "delete_note"
   | "add_reviewed_note"
   | "review_note"
   | "review_explanation"
@@ -21,6 +22,7 @@ export function isAnnotationOperation(
   name: string
 ): name is AnnotationOperation {
   return (
+    name === "delete_note" ||
     name === "add_reviewed_note" ||
     name === "review_note" ||
     name === "review_explanation" ||
@@ -268,6 +270,16 @@ export function applyAnnotationOperation(
   const path = structuredClone(original);
   const step = path.steps.find((step) => step.id === input.stepId);
   need(step, "Unknown step.");
+  if (operation === "delete_note") {
+    const note = step.notes.find((note) => note.id === input.noteId);
+    need(note && !note.archived, "Note no longer active in this step.");
+    note.history = [...(note.history ?? []), noteRevision(note)];
+    note.archived = true;
+    // Metadata deletion is not source review: retain body, author, time, hashes
+    // and reviewRequired even when the source cannot be resolved.
+    path.revision++;
+    return { path, note };
+  }
   if (operation === "repair_step_source") {
     const source = sourceReference(input.source);
     const code = resolve(root, index, source);

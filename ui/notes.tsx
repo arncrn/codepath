@@ -3,8 +3,9 @@ import type { SubmitEvent } from "react";
 import type { Note, ReferenceContext, Step } from "../types.mjs";
 import type { useAnnotationEditor } from "./annotation-editor";
 import { attachedBlockNotes, blockLineLabel } from "./block-notes";
-import { addNote } from "./api";
+import { addNote, deleteNote } from "./api";
 import { MarkdownBody } from "./markdown-body";
+import { DeleteNoteAction } from "./delete-note";
 import type { ReadingContext } from "./reading-context";
 
 export function useNoteDraft(fail: (error: unknown) => void) {
@@ -42,6 +43,7 @@ export function NotesPanel({
   draft,
   target,
   refresh,
+  revision,
   review,
   revealedIds,
 }: {
@@ -52,6 +54,7 @@ export function NotesPanel({
   draft: ReturnType<typeof useNoteDraft>;
   target: Pick<ReferenceContext, "walkthroughId" | "stepId"> | null;
   refresh: () => Promise<void>;
+  revision: number | undefined;
 }) {
   const blocks = currentStep ? attachedBlockNotes(currentStep) : [];
   function noteEntry(note: Note) {
@@ -106,6 +109,19 @@ export function NotesPanel({
         >
           Edit
         </button>
+        {target && revision !== undefined && (
+          <DeleteNoteAction
+            key={target.walkthroughId + currentStep?.id + note.id}
+            remove={async () => {
+              await deleteNote({
+                ...target,
+                noteId: note.id,
+                expectedRevision: revision,
+              });
+              await refresh();
+            }}
+          />
+        )}
       </article>
     );
   }
