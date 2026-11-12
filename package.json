@@ -27,6 +27,8 @@
     "package:extension": "vsce package --no-dependencies --allow-missing-repository --out codepath.vsix",
     "test:vscode": "npm run compile && node scripts/test-vscode.mjs",
     "test:browser": "npm run compile && node scripts/test-browser.mjs",
+    "test:flow": "npm run compile && node scripts/test-reading-context.mjs --flow",
+    "test:flow:vscode": "npm run compile && node scripts/test-reading-context.mjs --desktop --flow",
     "test:reading-context": "npm run compile && node scripts/test-reading-context.mjs",
     "test:source-project": "npm run compile && node scripts/test-source-project.mjs",
     "test:review-coverage": "npm run compile && node scripts/test-review-coverage.mjs",
@@ -93,6 +95,7 @@
   "dependencies": {
     "esbuild": "0.25.12",
     "marked": "18.2.0",
+    "mermaid": "12.3.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "refractor": "5.0.0",

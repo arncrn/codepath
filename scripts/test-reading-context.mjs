@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
+import { verifyWalkthroughFlow } from "./check-walkthrough-flow.mjs";
 import { startProjectService } from "../dist/service.mjs";
 import {
   dispatchReadingContext,
@@ -25,6 +26,11 @@ async function fixture(name, port, focus = true) {
   const root = path.join(dir, name);
   fs.mkdirSync(root);
   fs.writeFileSync(path.join(root, "flow.ts"), "export const value = 1;\n");
+  if (process.argv.includes("--flow"))
+    fs.writeFileSync(
+      path.join(root, 'label["<&>.ts'),
+      "export const value = 1;\n"
+    );
   const service = await startProjectService(root, {
     assetsRoot: path.join(base, "dist"),
     ...(port ? { port } : {}),
@@ -131,6 +137,15 @@ try {
     const errors = [];
     context.on("page", (p) => p.on("pageerror", (e) => errors.push(e.message)));
     await page.goto(service.url);
+    if (process.argv.includes("--flow"))
+      await verifyWalkthroughFlow(
+        service,
+        async () => page,
+        async () => {
+          await page.reload();
+          return page;
+        }
+      );
     await common(
       service,
       async () => page,
@@ -361,6 +376,12 @@ try {
       throw Error("Codepath webview did not render");
     }
     await command("Codepath: Open Walkthroughs");
+    if (process.argv.includes("--flow"))
+      await verifyWalkthroughFlow(service, frame, async () => {
+        await command("View: Close Editor");
+        await command("Codepath: Open Walkthroughs");
+        return frame();
+      });
     await choose(await frame());
     await command("Developer: Reload Window");
     await command("Codepath: Open Walkthroughs");

@@ -7,20 +7,40 @@ import { CallbackRoleSummary } from "./callback-roles";
 import type { SourceMenuPosition } from "./source-menu";
 import { inVSCode } from "./transport";
 import { followDefinition, openSourceInEditor } from "./api";
+import { currentFlowSource, type FlowSourceFocus } from "./flow-source";
 
 export function useSourceCards() {
   const rail = useRef<HTMLDivElement>(null);
   const [expandedStepIds, setExpandedStepIds] = useState(new Set<string>());
   const [menu, setMenu] = useState<SourceMenuPosition | null>(null);
+  const [flowFocus, setFlowFocus] = useState<FlowSourceFocus | null>(null);
+  const scrollRequest = useRef<symbol | null>(null);
+  function clearFlowSource() {
+    scrollRequest.current = Symbol();
+    setFlowFocus(null);
+  }
+  function focusFlowSource(focus: FlowSourceFocus) {
+    scrollRequest.current = Symbol();
+    setFlowFocus(focus);
+  }
   function closeMenu() {
     setMenu(null);
   }
   function reset() {
+    clearFlowSource();
     setExpandedStepIds(new Set());
   }
   function scrollTo(id: string) {
+    clearFlowSource();
+    const request = scrollRequest.current;
     requestAnimationFrame(() => {
-      [...rail.current!.querySelectorAll<HTMLElement>("[data-step]")]
+      if (
+        request !== scrollRequest.current ||
+        !rail.current ||
+        rail.current.closest("[hidden]")
+      )
+        return;
+      [...rail.current.querySelectorAll<HTMLElement>("[data-step]")]
         .find((element) => element.dataset.step === id)
         ?.scrollIntoView({
           behavior: "smooth",
@@ -53,6 +73,7 @@ export function useSourceCards() {
     document.addEventListener("keydown", key);
     document.addEventListener("scroll", scroll, true);
     return () => {
+      scrollRequest.current = null;
       document.removeEventListener("pointerdown", pointer);
       document.removeEventListener("keydown", key);
       document.removeEventListener("scroll", scroll, true);
@@ -60,6 +81,10 @@ export function useSourceCards() {
   }, []);
   return {
     rail,
+    flowFocus,
+    scrollRequest,
+    focusFlowSource,
+    clearFlowSource,
     expandedStepIds,
     menu,
     openMenu: setMenu,
@@ -71,6 +96,7 @@ export function useSourceCards() {
 }
 
 export function SourceCards({
+  active,
   walkthrough,
   selectedStepId,
   display,
@@ -87,6 +113,7 @@ export function SourceCards({
   connectAgent,
   fail,
 }: {
+  active: boolean;
   walkthrough: Walkthrough | null;
   selectedStepId: string | null;
   display: ReturnType<typeof useSourceCards>;
@@ -103,6 +130,37 @@ export function SourceCards({
   connectAgent: () => void;
   fail: (error: unknown) => void;
 }) {
+  const focus = display.flowFocus;
+  const validFocus =
+    active &&
+    focus?.node.stepId === selectedStepId &&
+    currentFlowSource(walkthrough, focus);
+  const latest = useRef({ active, walkthrough, focus, selectedStepId });
+  latest.current = { active, walkthrough, focus, selectedStepId };
+  useEffect(() => {
+    if (focus && !validFocus) display.clearFlowSource();
+    if (!focus || !validFocus) return;
+    const request = display.scrollRequest.current;
+    const frame = requestAnimationFrame(() => {
+      const state = latest.current;
+      if (
+        request !== display.scrollRequest.current ||
+        state.focus !== focus ||
+        !state.active ||
+        state.selectedStepId !== focus.node.stepId ||
+        !currentFlowSource(state.walkthrough, focus)
+      )
+        return;
+      display.rail.current
+        ?.querySelector<HTMLElement>(".code-card.active [data-flow-source]")
+        ?.scrollIntoView({
+          behavior: "instant",
+          block: "center",
+          inline: "center",
+        });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focus, validFocus]);
   return (
     <>
       <div className="caption">
@@ -238,12 +296,27 @@ export function SourceCards({
                   </button>
                 </div>
                 <div className="code">
+                  {validFocus && focus?.node.stepId === step.id && (
+                    <p className="flow-source-location" role="status">
+                      {focus.node.label} ·{" "}
+                      {focus.node.attachment.startLine ===
+                      focus.node.attachment.endLine
+                        ? `Line ${focus.node.attachment.startLine}`
+                        : `Lines ${focus.node.attachment.startLine}–${focus.node.attachment.endLine}`}
+                    </p>
+                  )}
                   <FunctionContextLabel step={step} />
                   <CodeLines
                     step={step}
                     walkthroughId={walkthrough!.id}
                     full={display.expandedStepIds.has(step.id)}
+                    flowSource={
+                      validFocus && focus?.node.stepId === step.id
+                        ? focus.node.attachment
+                        : undefined
+                    }
                     selectRange={(range) => {
+                      display.clearFlowSource();
                       if (selectedStepId !== step.id)
                         selectStep(step.id, false);
                       selectRange(step.id, range);

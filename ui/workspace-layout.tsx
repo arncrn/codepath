@@ -152,7 +152,7 @@ export function DetailPanels({
   children: ReactNode;
 }) {
   return (
-    <section id="detail" hidden={!currentStep}>
+    <section id="detail" hidden={!hasWalkthrough}>
       <div className="detail-heading">
         <div>
           <button
@@ -182,6 +182,13 @@ export function DetailPanels({
               (note) => !note.archived && note.variableName
             ).length ?? 0}
           </button>
+          <button
+            id="flow-tab"
+            className={tab === "flow" ? "active" : ""}
+            onClick={() => changeTab("flow")}
+          >
+            Flow
+          </button>
         </div>
         <div>
           <span id="position">
@@ -198,7 +205,7 @@ export function DetailPanels({
           <button
             id="next"
             aria-label="Next step"
-            disabled={!hasWalkthrough || position === stepCount - 1}
+            disabled={!currentStep || position === stepCount - 1}
             onClick={() => navigate(1)}
           >
             →

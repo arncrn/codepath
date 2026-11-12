@@ -109,8 +109,52 @@ test("Named UI operations exercise the real authenticated workspace interface", 
   });
   assert.equal((await api.listRuns(walk.id)).length, 1);
   assert.equal((await api.getRun(run.id)).mode, "example");
-  const current = await api.getWalkthrough(walk.id);
+  let current = await api.getWalkthrough(walk.id);
   assert.equal(current.steps[0].notes[0].body, "The function returns 1.");
+  const code = current.steps[0].code;
+  current = await api.saveWalkthroughFlow({
+    walkthroughId: walk.id,
+    expectedRevision: current.revision,
+    graph: {
+      version: 1,
+      summary:
+        "The source is truly linear: one constant return, not a card-order edge.",
+      nodes: [
+        {
+          id: "return",
+          stepId: "run",
+          kind: "exit",
+          label: "Return 1",
+          sourceHash: code.hash,
+          attachment: {
+            file: code.file,
+            fileHash: code.fileHash,
+            startLine: 1,
+            endLine: 1,
+            startColumn: 24,
+            endColumn: 33,
+            text: "return 1;",
+          },
+        },
+      ],
+      edges: [],
+    },
+  });
+  assert.equal(current.flowState.status, "current");
+  await assert.rejects(
+    api.saveWalkthroughFlow({
+      walkthroughId: walk.id,
+      expectedRevision: current.revision - 1,
+      graph: null,
+    }),
+    /changed/
+  );
+  current = await api.saveWalkthroughFlow({
+    walkthroughId: walk.id,
+    expectedRevision: current.revision,
+    graph: null,
+  });
+  assert.equal(current.flowState.status, "absent");
   await api.deleteWalkthrough({
     id: walk.id,
     expectedRevision: current.revision,

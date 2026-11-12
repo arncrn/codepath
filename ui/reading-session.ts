@@ -10,13 +10,17 @@ import {
 } from "./transport";
 import type { ReadingContext } from "./reading-context";
 import type { RunSelection } from "./run-panel";
+import { currentFlowSource, type FlowSourceFocus } from "./flow-source";
 
 interface ReadingEffects {
   dialogOpen: boolean;
   resetDraft: () => void;
+  switchDraftScope: (key: string | null) => void;
   clearSource: () => void;
   closeSourceMenu: () => void;
   scrollToStep: (id: string) => void;
+  focusFlowSource: (focus: FlowSourceFocus) => void;
+  clearFlowSource: () => void;
   fail: (error: unknown) => void;
 }
 
@@ -54,9 +58,16 @@ export function useReadingSession(options: ReadingEffects) {
     setRunSelection({ kind: "fixture" });
     latestSeenRunId.current = null;
     effects.current.clearSource();
+    effects.current.switchDraftScope(null);
     effects.current.resetDraft();
   }
   function selectStep(id: string, scroll = true) {
+    effects.current.clearFlowSource();
+    effects.current.switchDraftScope(
+      view.current.walkthrough
+        ? JSON.stringify([view.current.walkthrough.id, id])
+        : null
+    );
     setSelected(id);
     effects.current.resetDraft();
     if (scroll) effects.current.scrollToStep(id);
@@ -66,6 +77,8 @@ export function useReadingSession(options: ReadingEffects) {
     requestedStepId?: string,
     workspaceOverview = view.current.overview
   ) {
+    if (requestedStepId || walkthroughId !== view.current.walkthrough?.id)
+      effects.current.clearFlowSource();
     const thisLoadRequestNumber = ++latestViewRequestNumber.current;
     const previousWalkthrough = view.current.walkthrough;
     const loadedWalkthrough = await getWalkthrough(walkthroughId);
@@ -107,7 +120,11 @@ export function useReadingSession(options: ReadingEffects) {
         (step) => step.id === view.current.selectedStepId
       )
     ) {
-      setSelected(loadedWalkthrough.steps[0]?.id ?? null);
+      const first = loadedWalkthrough.steps[0]?.id ?? null;
+      effects.current.switchDraftScope(
+        first ? JSON.stringify([loadedWalkthrough.id, first]) : null
+      );
+      setSelected(first);
       effects.current.resetDraft();
     }
     effects.current.closeSourceMenu();
@@ -302,7 +319,24 @@ export function useReadingSession(options: ReadingEffects) {
     openWalkthrough,
     discardDeletedWalkthrough,
     selectStep,
-    selectAfterRemoval: (id: string | null) => setSelected(id),
+    selectFlowCard: (focus: FlowSourceFocus) => {
+      const walk = view.current.walkthrough;
+      if (!walk || !currentFlowSource(walk, focus)) return;
+      effects.current.switchDraftScope(
+        JSON.stringify([walk.id, focus.node.stepId])
+      );
+      setSelected(focus.node.stepId);
+      effects.current.focusFlowSource(focus);
+    },
+    selectAfterRemoval: (id: string | null) => {
+      effects.current.switchDraftScope(
+        id && view.current.walkthrough
+          ? JSON.stringify([view.current.walkthrough.id, id])
+          : null
+      );
+      effects.current.resetDraft();
+      setSelected(id);
+    },
     changeTab: (tab: ReadingContext["tab"]) => setTab(tab),
     move,
     refresh,

@@ -98,7 +98,10 @@ export async function dispatchReadingContext(
       !id(v.walkthroughId) ||
       !id(v.stepId) ||
       !id(v.focusNonce) ||
-      (v.tab !== "data" && v.tab !== "notes" && v.tab !== "variables")
+      (v.tab !== "data" &&
+        v.tab !== "notes" &&
+        v.tab !== "variables" &&
+        v.tab !== "flow")
     )
       return null;
     return {

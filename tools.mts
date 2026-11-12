@@ -604,6 +604,98 @@ export const tools = [
     false
   ),
   define(
+    "save_walkthrough_flow",
+    "Explicitly author a source-bound behavioral explanation graph, not reading order or runtime proof. Read every selected source and establish imported/lexical call identity; never infer calls from card order or bare names. Include true/false decisions, joins, loop/recursion edges where relevant and unresolved nodes for opaque/dynamic connections. The origin node selection supports each edge; basis is authored reasoning, not verified semantics. Preserve existing card purposes, Notes and Variables; Flow does not review them. Omitted Flow remains valid for legacy guides. Re-read get_walkthrough after saving and require flowState.status=current, then semantically review relationships. Graph=null explicitly clears. Budgets reject, never truncate: 120 nodes, 240 edges, 256 KiB.",
+    {
+      walkthroughId: str("Existing walkthrough ID"),
+      expectedRevision: { type: "integer", minimum: 1 },
+      graph: {
+        type: ["object", "null"],
+        additionalProperties: false,
+        properties: {
+          version: { type: "integer", minimum: 1, description: "Must equal 1" },
+          summary: str(
+            "Concise selected behavior and limits/omissions, up to 1200 characters"
+          ),
+          nodes: {
+            type: "array",
+            maxItems: 120,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                id: str("Unique graph-local stable ID"),
+                stepId: str(
+                  "Known stable card ID; independent of reading order"
+                ),
+                kind: {
+                  type: "string",
+                  enum: [
+                    "entry",
+                    "process",
+                    "decision",
+                    "join",
+                    "call",
+                    "exit",
+                    "unresolved",
+                  ],
+                },
+                label: str("Plain text, up to 300 characters"),
+                sourceHash: str(
+                  "Current displayed code.hash, NOT snapshotHash"
+                ),
+                attachment: attachments.items!,
+              },
+              required: [
+                "id",
+                "stepId",
+                "kind",
+                "label",
+                "sourceHash",
+                "attachment",
+              ],
+            },
+          },
+          edges: {
+            type: "array",
+            maxItems: 240,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                from: str(
+                  "Origin graph node ID, whose exact source selection supports this relation"
+                ),
+                to: str("Destination graph node ID"),
+                kind: {
+                  type: "string",
+                  enum: [
+                    "next",
+                    "true",
+                    "false",
+                    "call",
+                    "return",
+                    "loop",
+                    "recursion",
+                    "unresolved",
+                  ],
+                },
+                label: str("Plain text, up to 200 characters; empty allowed"),
+                basis: str(
+                  "Reviewed source reasoning, up to 1200 characters; disclose conditional continuations and uncertainty"
+                ),
+              },
+              required: ["from", "to", "kind", "label", "basis"],
+            },
+          },
+        },
+        required: ["version", "summary", "nodes", "edges"],
+      },
+    },
+    ["walkthroughId", "expectedRevision", "graph"],
+    false
+  ),
+  define(
     "delete_walkthrough",
     "Permanently delete one walkthrough, its notes and its runs, never source files. Only after user confirmation. Pass the confirmed revision; concurrent notes, runs or path edits require fresh review.",
     {

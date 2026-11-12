@@ -63,6 +63,12 @@ Your last walkthrough, step and data/notes tab are remembered per workspace. In 
 
 This removes server/folder/first-step setup, **not** the need to map a behavior. Codepath does not automatically infer a complete cross-layer path. Existing MCP/CLI agents still require the connection described below; there is no embedded model. Runtime values still require explicit capture. The bundled checkout is not automatically built or executed by the extension.
 
+### Read source-bound Flow
+
+The **Flow** tab displays an optional authored behavioral graph, not saved-card adjacency. Ask your connected coding agent to read current source and use `save_walkthrough_flow` for selected calls, true/false branches, joins, loops, recursion and explicit unresolved connections. No automatic exhaustive CFG, name-matched calls or execution trace is inferred. See [the authoring contract](docs/semantic-flow-authoring.md).
+
+Nodes select existing cards by mouse or Enter/Space while preserving independent per-card plain-note drafts, selected run and Flow tab. Actual size keeps text readable with scrolling; Fit diagram is an overview. Absent Flow is explicit. Changed/deleted source or linked cards makes the graph stale and disables diagram/navigation until explicitly reauthored; reads never prune, relocate or review saved content. Main Markdown, lexical function context and separate B comparison columns are unchanged.
+
 ### Delete a walkthrough
 
 Open the walkthrough and click **Delete walkthrough** beside **Add step**. Review its name and the counts of steps, notes and saved runs, then confirm. **Cancel**, Escape or closing the dialog leaves it unchanged.
@@ -329,7 +335,7 @@ The HTTP server binds to loopback, validates Host/Origin, requires a local sessi
 - JS/TS/React: TypeScript syntax parsing, not full TypeScript type-resolution or runtime call analysis.
 - Go: approximate function and method indexing with lexical masking; generic signatures, unusual return types and complex constructs need manual range selection.
 - Calls: agent-only `follow_calls` uses name matches. Direct identifier navigation in VS Code prefers language definitions, with an inferred name fallback. Provider availability, source exclusions and per-file limits still apply; this is not automatic callback execution, virtual dispatch or HTTP/queue tracing.
-- Layout: one ordered path; alternative branches should be separate walkthroughs for now.
+- Layout: ordered reading cards plus optional explicitly authored source-bound Flow. The graph explains selected behavioral connections, not exhaustive control flow or observed execution.
 - Cross-layer paths: the sample is explicitly mapped. No promise of automatic whole-app tracing.
 - Notes and explanations: persistent explicit correction, logical deletion, history and exact displayed-code attachments. Git differences are a separate reader, not a findings/approval/AI-review platform. No automatic AI rewriting, native-editor explanation hover or remote PR history.
 - Values: explicit instrumentation or fixture import; no arbitrary local-variable capture.
@@ -387,6 +393,8 @@ Requires Java 11+; the first run downloads checksum-pinned TLA+ tools 1.7.4. The
     npm run test:markdown
     npm run test:card-layout
     npm run test:function-context
+    npm run test:flow
+    npm run test:flow:vscode
     npm run test:reading-context
     npm run test:reading-context:vscode
 

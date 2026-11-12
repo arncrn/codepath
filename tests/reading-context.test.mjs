@@ -34,6 +34,10 @@ test("Reading context accepts only bounded position fields and survives absent/m
   ])
     assert.equal(parseReadingContext(value), null);
   assert.deepEqual(parseReadingContext(position), position);
+  assert.deepEqual(parseReadingContext({ ...position, tab: "flow" }), {
+    ...position,
+    tab: "flow",
+  });
   assert.deepEqual(
     parseReadingContext({ ...position, draft: "must not persist" }),
     position
@@ -56,6 +60,12 @@ test("Host workspaceState bridge binds keys to session roots and rejects arbitra
   assert.deepEqual(
     await dispatchReadingContext(state, "/a", "reading-context/get"),
     position
+  );
+  const flow = { ...position, tab: "flow" };
+  await dispatchReadingContext(state, "/a", "reading-context/set", flow);
+  assert.deepEqual(
+    await dispatchReadingContext(state, "/a", "reading-context/get"),
+    flow
   );
   assert.equal(
     await dispatchReadingContext(state, "/b", "reading-context/get"),

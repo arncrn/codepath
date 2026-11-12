@@ -9,6 +9,7 @@ import { useAnnotationEditor } from "./annotation-editor";
 import { NotesPanel, useNoteDraft } from "./notes";
 import { Dialogs, useDialogs } from "./dialogs";
 import { RunPanel } from "./run-panel";
+import { WalkthroughFlow } from "./walkthrough-flow";
 import { SourceCards, useSourceCards } from "./source-cards";
 import { SourceMenu } from "./source-menu";
 import { createWalkthroughCommands } from "./walkthrough-commands";
@@ -38,9 +39,12 @@ export function App() {
   const reader = useReadingSession({
     dialogOpen: !!dialogs.modal || reviewOpen,
     resetDraft: draft.reset,
+    switchDraftScope: draft.switchScope,
     clearSource: sourceDisplay.reset,
     closeSourceMenu: sourceDisplay.closeMenu,
     scrollToStep: sourceDisplay.scrollTo,
+    focusFlowSource: sourceDisplay.focusFlowSource,
+    clearFlowSource: sourceDisplay.clearFlowSource,
     fail,
   });
   useEffect(() => {
@@ -185,6 +189,7 @@ export function App() {
             fail={fail}
           />
           <SourceCards
+            active={!reviewOpen}
             walkthrough={reader.walkthrough}
             selectedStepId={reader.selectedStepId}
             display={sourceDisplay}
@@ -250,6 +255,11 @@ export function App() {
               refresh={reader.refresh}
               hidden={reader.tab !== "data"}
               fail={fail}
+            />
+            <WalkthroughFlow
+              walkthrough={reader.walkthrough}
+              hidden={reviewOpen || reader.tab !== "flow"}
+              selectCard={reader.selectFlowCard}
             />
             <NotesPanel
               currentStep={reader.currentStep}

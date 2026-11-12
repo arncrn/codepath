@@ -186,15 +186,59 @@ export interface Step extends SavedStep {
   stale: boolean;
   error?: string;
 }
+export interface FlowNode {
+  id: string;
+  kind:
+    "entry" | "process" | "decision" | "join" | "call" | "exit" | "unresolved";
+  label: string;
+  stepId: string;
+  sourceHash: string;
+  attachment: SourceAttachment;
+}
+export interface FlowEdge {
+  from: string;
+  to: string;
+  kind:
+    | "next"
+    | "true"
+    | "false"
+    | "call"
+    | "return"
+    | "loop"
+    | "recursion"
+    | "unresolved";
+  label: string;
+  basis: string;
+}
+export interface WalkthroughGraph {
+  version: 1;
+  summary: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
+export interface FlowState {
+  status: "absent" | "current" | "stale";
+  message: string;
+  definition?: string;
+  nodes?: {
+    id: string;
+    stepId: string;
+    label: string;
+    sourceHash: string;
+    attachment: SourceAttachment;
+  }[];
+}
 export interface SavedWalkthrough {
   id: string;
   title: string;
   description: string;
   steps: SavedStep[];
   revision: number;
+  flow?: WalkthroughGraph;
 }
 export interface Walkthrough extends Omit<SavedWalkthrough, "steps"> {
   steps: Step[];
+  flowState: FlowState;
 }
 export interface RunEvent extends Values {
   stepId: string;
@@ -622,6 +666,11 @@ export interface ToolArgs {
     steps: StepInput[];
     expectedRevision?: number;
   };
+  save_walkthrough_flow: {
+    walkthroughId: string;
+    expectedRevision: number;
+    graph: WalkthroughGraph | null;
+  };
   delete_walkthrough: { id: string; expectedRevision: number };
   add_note: {
     walkthroughId: string;
@@ -723,6 +772,7 @@ export interface ToolResults {
   validate_walkthrough: AuthoringReport;
   source_usages: SourceUsageBatch;
   save_walkthrough: Walkthrough;
+  save_walkthrough_flow: Walkthrough;
   delete_walkthrough: { id: string; deleted: boolean };
   add_note: Note;
   delete_note: Note;

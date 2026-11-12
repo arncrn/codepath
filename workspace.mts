@@ -5,6 +5,11 @@ import { resolve, follow, hash } from "./indexer.mjs";
 import { createSourceProject } from "./source-project.mjs";
 import { validateWalkthrough } from "./walkthrough-validation.mjs";
 import {
+  admitWalkthroughFlow,
+  parseWalkthroughFlow,
+  projectWalkthroughFlow,
+} from "./walkthrough-flow.mjs";
+import {
   validateComparisonNotes,
   readComparisonNotes,
   saveComparisonNote,
@@ -67,6 +72,7 @@ type Input = Partial<{
   query: string;
   cursor: string;
   notApplicable: unknown;
+  graph: unknown;
   source: SourceRef;
   line: number;
   column: number;
@@ -107,8 +113,10 @@ export function openWorkspace(root: string) {
   validateComparisonNotes(state.comparisonNotes);
   validateComparisonWalkthroughs(state.comparisonWalkthroughs);
   validateGitViewed(state.gitViewed);
-  for (const walkthrough of state.paths)
+  for (const walkthrough of state.paths) {
+    if (walkthrough.flow !== undefined) parseWalkthroughFlow(walkthrough.flow);
     for (const step of walkthrough.steps) parseCallbackRole(step.callbackRole);
+  }
   const sources = createSourceProject(root);
   const index = sources.index;
   const refresh = () => sources.refresh();
@@ -130,31 +138,28 @@ export function openWorkspace(root: string) {
   };
   const hydrate = (p: SavedWalkthrough): Walkthrough => {
     sources.watch(p.steps.map((step) => step.source.file));
-    return {
-      ...p,
-      steps: p.steps.map((s) => {
-        try {
-          const code = resolve(root, index, s.source);
-          return {
-            ...s,
-            code,
-            stale:
-              !!s.explanationReviewRequired || s.snapshotHash !== code.hash,
-            explanationAttachments: hydrateAttachments(
-              s.explanationAttachments,
-              code
-            ),
-            notes: s.notes.map((n) => ({
-              ...n,
-              attachments: hydrateAttachments(n.attachments, code),
-              stale: !!n.reviewRequired || n.hash !== code.hash,
-            })),
-          };
-        } catch (e) {
-          return { ...s, error: errorMessage(e), stale: true };
-        }
-      }),
-    };
+    const steps = p.steps.map((s) => {
+      try {
+        const code = resolve(root, index, s.source);
+        return {
+          ...s,
+          code,
+          stale: !!s.explanationReviewRequired || s.snapshotHash !== code.hash,
+          explanationAttachments: hydrateAttachments(
+            s.explanationAttachments,
+            code
+          ),
+          notes: s.notes.map((n) => ({
+            ...n,
+            attachments: hydrateAttachments(n.attachments, code),
+            stale: !!n.reviewRequired || n.hash !== code.hash,
+          })),
+        };
+      } catch (e) {
+        return { ...s, error: errorMessage(e), stale: true };
+      }
+    });
+    return { ...p, steps, flowState: projectWalkthroughFlow(p.flow, steps) };
   };
   let noteUpdateWarning: string | null = null;
   function overview(walkthroughId?: string): Overview {
@@ -527,6 +532,32 @@ export function openWorkspace(root: string) {
       return buildSourceUsageIndex(root, index, state.paths).forWalkthrough(
         a.walkthroughId
       );
+    if (name === "save_walkthrough_flow") {
+      const original = get(a.walkthroughId);
+      need(
+        a.expectedRevision === original.revision,
+        "Walkthrough changed. Read it again before authoring Flow."
+      );
+      const graph =
+        a.graph === null
+          ? undefined
+          : admitWalkthroughFlow(a.graph, hydrate(original).steps);
+      const updated = { ...original, revision: original.revision + 1 };
+      if (graph) updated.flow = graph;
+      else delete updated.flow;
+      const before = state;
+      state = {
+        ...state,
+        paths: state.paths.map((p) => (p.id === original.id ? updated : p)),
+      };
+      try {
+        save();
+      } catch (error) {
+        state = before;
+        throw error;
+      }
+      return hydrate(updated);
+    }
     if (name === "delete_walkthrough") {
       const p = get(a.id);
       need(
@@ -588,7 +619,10 @@ export function openWorkspace(root: string) {
         const explanation = String(s.explanation ?? "").slice(0, 10000);
         const bodyChanged = before && explanation !== before.explanation;
         const sourceChanged = before && !same;
+        const preserved = { ...before };
+        delete preserved.callbackRole;
         return {
+          ...preserved,
           id: s.id,
           title: text(s.title, 200),
           source: same
@@ -639,15 +673,26 @@ export function openWorkspace(root: string) {
         };
       });
       const p = {
+        ...old,
         id,
         title: text(a.title, 200),
         description: String(a.description ?? "").slice(0, 10000),
         steps,
         revision: (old?.revision ?? 0) + 1,
       };
-      if (old) state.paths[state.paths.indexOf(old)] = p;
-      else state.paths.push(p);
-      save();
+      const previousState = state;
+      state = {
+        ...state,
+        paths: old
+          ? state.paths.map((path) => (path.id === old.id ? p : path))
+          : [...state.paths, p],
+      };
+      try {
+        save();
+      } catch (error) {
+        state = previousState;
+        throw error;
+      }
       return hydrate(p);
     }
     if (isAnnotationOperation(name)) {

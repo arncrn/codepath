@@ -83,6 +83,9 @@ export function getWalkthrough(walkthroughId: string) {
 export function saveWalkthrough(walkthrough: ToolArgs["save_walkthrough"]) {
   return invokeWorkspaceTool("save_walkthrough", walkthrough);
 }
+export function saveWalkthroughFlow(flow: ToolArgs["save_walkthrough_flow"]) {
+  return invokeWorkspaceTool("save_walkthrough_flow", flow);
+}
 export function deleteWalkthrough(
   confirmedDeletion: ToolArgs["delete_walkthrough"]
 ) {

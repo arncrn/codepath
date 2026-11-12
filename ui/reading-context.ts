@@ -3,7 +3,7 @@ export interface ReadingContext {
   version: 1;
   walkthroughId: string | null;
   stepId: string | null;
-  tab: "data" | "notes" | "variables";
+  tab: "data" | "notes" | "variables" | "flow";
   focusNonce: string | null;
 }
 export function parseReadingContext(value: unknown): ReadingContext | null {
@@ -16,7 +16,10 @@ export function parseReadingContext(value: unknown): ReadingContext | null {
     !id(v.walkthroughId) ||
     !id(v.stepId) ||
     !id(v.focusNonce) ||
-    (v.tab !== "data" && v.tab !== "notes" && v.tab !== "variables")
+    (v.tab !== "data" &&
+      v.tab !== "notes" &&
+      v.tab !== "variables" &&
+      v.tab !== "flow")
   )
     return null;
   return {

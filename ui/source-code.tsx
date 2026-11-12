@@ -26,6 +26,7 @@ export function CodeLines({
   explanationColors,
   syntax: suppliedSyntax,
   rowLines,
+  flowSource,
 }: {
   step: Step;
   annotationStep?: Step;
@@ -38,6 +39,7 @@ export function CodeLines({
   explanationColors?: Record<string, string>;
   syntax?: ReturnType<typeof tokenizeSource>;
   rowLines?: readonly DisplayDiffRow[];
+  flowSource?: SourceAttachment;
   selectRange?: (range: SourceAttachment) => void;
   clearSelection?: () => void;
   reveal?: (ids: string[]) => void;
@@ -112,6 +114,21 @@ export function CodeLines({
           if (first > from && first < to) boundaries.add(first);
           if (last > from && last < to) boundaries.add(last);
         }
+      const flowOnLine =
+        flowSource &&
+        lineNumber >= flowSource.startLine &&
+        lineNumber <= flowSource.endLine;
+      const flowStart =
+        flowOnLine && lineNumber === flowSource.startLine
+          ? flowSource.startColumn
+          : 0;
+      const flowEnd =
+        flowOnLine && lineNumber === flowSource.endLine
+          ? flowSource.endColumn
+          : line.length;
+      if (flowOnLine)
+        for (const column of [flowStart, flowEnd])
+          if (column > from && column < to) boundaries.add(column);
       const offsets = [...boundaries].sort((left, right) => left - right);
       return offsets.slice(0, -1).map((first, index) => {
         const last = offsets[index + 1],
@@ -172,12 +189,31 @@ export function CodeLines({
               }
             }}
           >
-            {coloredText(first, last)}
+            {flowOnLine && first >= flowStart && last <= flowEnd ? (
+              <mark className="flow-source-target" data-flow-source="true">
+                {coloredText(first, last)}
+              </mark>
+            ) : (
+              coloredText(first, last)
+            )}
           </span>
         );
       });
     }
     const parts: ReactNode[] = [];
+    if (
+      !line.length &&
+      flowSource &&
+      lineNumber >= flowSource.startLine &&
+      lineNumber < flowSource.endLine
+    )
+      parts.push(
+        <mark
+          key="empty-flow-line"
+          className="flow-source-target"
+          data-flow-source="true"
+        />
+      );
     let offset = 0;
     for (const match of inVSCode && !snapshot
       ? line.matchAll(/[A-Za-z_$][\w$]*/g)

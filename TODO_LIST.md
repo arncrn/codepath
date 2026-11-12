@@ -191,10 +191,10 @@ These remain useful candidates, but are not all prerequisites for the self-learn
   - User accepted the corrected implementation and authorized integration into main; source is now committed in main and not installed.
   - Partial ranges spanning nested callbacks identify their common containing function; current source names remain independent of stale explanations. Genuinely ambiguous, unsupported or unavailable source stays explicit; Go inference remains conservative.
 
-- [ ] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
+- [x] ticket-28. Add a Mermaid diagram tab for the walkthrough flow.
   - blocked by: none.
   - The user rejected a diagram of saved card order. Show source-supported calls, decisions, branches and loops linked to the relevant cards; unresolved connections must remain explicit.
-  - Corrected source-bound authored Flow is available in the isolated viewer, with card navigation and explicit unresolved connections. Parent browser/native, source-binding, draft and ownership checks passed; not integrated into main and awaiting user acceptance.
+  - Corrected source-bound authored Flow is ported onto main26/27+B in the isolated ticket-28 worktree, retaining typed source-supported connections, exact currentness, passive SVG/CSP and per-card drafts. New own-source/real B guide publication and verification are reported in this run's ticket result. Not integrated into main or human-accepted; original isolated viewer/data remain untouched.
 
 ## Reliability and tooling gaps found in the TODO audit
 

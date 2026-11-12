@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { build } from "esbuild";
+import { mermaidCsp } from "./mermaid-csp.mjs";
 
 await fs.mkdir("dist", { recursive: true });
 // Keep runtime import paths stable (.mjs), while authoring every application
@@ -21,6 +22,7 @@ await build({
     "comparison-walkthroughs.mts",
     "annotations.mts",
     "walkthrough-validation.mts",
+    "walkthrough-flow.mts",
     "source-bindings.mts",
     "authoring-policy.mts",
     "service.mts",
@@ -64,6 +66,7 @@ await build({
 });
 await build({
   entryPoints: ["ui.tsx"],
+  plugins: [mermaidCsp],
   outfile: "dist/ui.js",
   bundle: true,
   platform: "browser",

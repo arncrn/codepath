@@ -10,13 +10,23 @@ import type { ReadingContext } from "./reading-context";
 
 export function useNoteDraft(fail: (error: unknown) => void) {
   const [body, setBody] = useState("");
-  const editVersion = useRef(0);
+  const scope = useRef<string | null>(null);
+  const drafts = useRef(new Map<string, { body: string; version: number }>());
+  function switchScope(key: string | null) {
+    scope.current = key;
+    setBody(key ? (drafts.current.get(key)?.body ?? "") : "");
+  }
   function edit(body: string) {
-    editVersion.current++;
+    const key = scope.current;
+    if (key)
+      drafts.current.set(key, {
+        body,
+        version: (drafts.current.get(key)?.version ?? 0) + 1,
+      });
     setBody(body);
   }
   function reset() {
-    setBody("");
+    edit("");
   }
   async function submit(
     event: SubmitEvent<HTMLFormElement>,
@@ -25,16 +35,28 @@ export function useNoteDraft(fail: (error: unknown) => void) {
   ) {
     event.preventDefault();
     if (!target) return;
-    const submittedVersion = editVersion.current;
+    const submittedScope = scope.current;
+    const submittedVersion = submittedScope
+      ? drafts.current.get(submittedScope)?.version
+      : undefined;
     try {
       await addNote({ ...target, body, author: "You" });
-      if (submittedVersion === editVersion.current) setBody("");
+      if (
+        submittedScope &&
+        drafts.current.get(submittedScope)?.version === submittedVersion
+      ) {
+        drafts.current.set(submittedScope, {
+          body: "",
+          version: (submittedVersion ?? 0) + 1,
+        });
+        if (scope.current === submittedScope) setBody("");
+      }
       await refresh();
     } catch (error) {
       fail(error);
     }
   }
-  return { body, edit, reset, submit };
+  return { body, edit, reset, switchScope, submit };
 }
 
 export function NotesPanel({
