@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import type { Overview, Run, Walkthrough } from "../types.mjs";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Overview, Walkthrough } from "../types.mjs";
 import { errorMessage } from "../types.mjs";
-import { getProjectOverview, getRun, getWalkthrough } from "./api";
+import { getProjectOverview, getWalkthrough } from "./api";
 import {
   config,
   loadReadingContext,
@@ -9,8 +9,8 @@ import {
   saveReadingContext,
 } from "./transport";
 import type { ReadingContext } from "./reading-context";
-import type { RunSelection } from "./run-panel";
 import { currentFlowSource, type FlowSourceFocus } from "./flow-source";
+import { createRefreshQueue } from "./refresh-queue";
 
 interface ReadingEffects {
   dialogOpen: boolean;
@@ -31,21 +31,19 @@ export function useReadingSession(options: ReadingEffects) {
     restorePending = useRef(true);
   const [overview, setOverview] = useState<Overview | null>(null),
     [walkthrough, setWalkthrough] = useState<Walkthrough | null>(null),
-    [selectedStepId, setSelected] = useState<string | null>(null),
-    [runSelection, setRunSelection] = useState<RunSelection>({
-      kind: "fixture",
-    });
-  const [tab, setTab] = useState<ReadingContext["tab"]>("data");
+    [selectedStepId, setSelected] = useState<string | null>(null);
+  const [tab, setTab] = useState<ReadingContext["tab"]>("notes");
   const view = useRef({ overview, walkthrough, selectedStepId });
   view.current = { overview, walkthrough, selectedStepId };
   const latestViewRequestNumber = useRef(0),
-    polling = useRef(false),
     workspaceSignature = useRef(""),
     consumedFocusNonce = useRef<string | null>(null),
-    latestSeenRunId = useRef<string | null>(null),
     modalOpen = useRef(false),
     isViewMounted = useRef(true);
-  const refreshAction = useRef<() => Promise<void>>(async () => {});
+  const refreshQueue = useMemo(createRefreshQueue, []);
+  const refreshAction = useRef<(force?: boolean) => Promise<void>>(
+    async () => {}
+  );
   const effects = useRef(options);
   effects.current = options;
   function acceptSavedWalkthrough(value: Walkthrough | null) {
@@ -55,8 +53,6 @@ export function useReadingSession(options: ReadingEffects) {
   function clearWalkthrough() {
     acceptSavedWalkthrough(null);
     setSelected(null);
-    setRunSelection({ kind: "fixture" });
-    latestSeenRunId.current = null;
     effects.current.clearSource();
     effects.current.switchDraftScope(null);
     effects.current.resetDraft();
@@ -75,39 +71,25 @@ export function useReadingSession(options: ReadingEffects) {
   async function openWalkthrough(
     walkthroughId: string,
     requestedStepId?: string,
-    workspaceOverview = view.current.overview
+    _workspaceOverview = view.current.overview,
+    stillCurrent: () => boolean = () => true
   ) {
     if (requestedStepId || walkthroughId !== view.current.walkthrough?.id)
       effects.current.clearFlowSource();
     const thisLoadRequestNumber = ++latestViewRequestNumber.current;
     const previousWalkthrough = view.current.walkthrough;
-    const loadedWalkthrough = await getWalkthrough(walkthroughId);
-    if (
-      !isViewMounted.current ||
-      thisLoadRequestNumber !== latestViewRequestNumber.current
-    )
-      return;
-    const isDifferentWalkthrough = previousWalkthrough?.id !== walkthroughId;
-    const latestRunSummary = workspaceOverview?.runs.find(
-      (savedRun) => savedRun.walkthroughId === walkthroughId
+    const current = () =>
+      isViewMounted.current &&
+      stillCurrent() &&
+      thisLoadRequestNumber === latestViewRequestNumber.current;
+    const loadedWalkthrough = await getWalkthrough(walkthroughId).catch(
+      (error: unknown) => {
+        if (current()) throw error;
+        return null;
+      }
     );
-    if (
-      isDifferentWalkthrough ||
-      (latestRunSummary && latestRunSummary.id !== latestSeenRunId.current)
-    ) {
-      const loadedRun = latestRunSummary
-        ? await getRun(latestRunSummary.id)
-        : null;
-      if (
-        !isViewMounted.current ||
-        thisLoadRequestNumber !== latestViewRequestNumber.current
-      )
-        return;
-      latestSeenRunId.current = latestRunSummary?.id ?? null;
-      setRunSelection(
-        loadedRun ? { kind: "saved", run: loadedRun } : { kind: "fixture" }
-      );
-    }
+    if (!loadedWalkthrough || !current()) return;
+    const isDifferentWalkthrough = previousWalkthrough?.id !== walkthroughId;
     acceptSavedWalkthrough(loadedWalkthrough);
     if (
       requestedStepId &&
@@ -129,10 +111,19 @@ export function useReadingSession(options: ReadingEffects) {
     }
     effects.current.closeSourceMenu();
   }
-  async function refresh(force = false) {
+  function refresh(force = false, current: () => boolean = () => true) {
+    return refreshQueue(
+      () => refreshRead(force, current),
+      force,
+      () => isViewMounted.current && current()
+    );
+  }
+  async function refreshRead(force: boolean, current: () => boolean) {
+    if (!initialized.current) {
+      if (force) throw Error("Workspace is still opening. Try Refresh again.");
+      return;
+    }
     if (force) workspaceSignature.current = "";
-    if (!initialized.current || polling.current) return;
-    polling.current = true;
     const viewRequestNumberAtRefreshStart = latestViewRequestNumber.current;
     try {
       const refreshedOverview = await getProjectOverview(
@@ -140,6 +131,7 @@ export function useReadingSession(options: ReadingEffects) {
       );
       if (
         !isViewMounted.current ||
+        !current() ||
         viewRequestNumberAtRefreshStart !== latestViewRequestNumber.current
       )
         return;
@@ -173,7 +165,8 @@ export function useReadingSession(options: ReadingEffects) {
         await openWalkthrough(
           refreshedOverview.focus.walkthroughId,
           refreshedOverview.focus.stepId,
-          refreshedOverview
+          refreshedOverview,
+          current
         );
       } else if (
         savedReadingContext &&
@@ -184,7 +177,8 @@ export function useReadingSession(options: ReadingEffects) {
         await openWalkthrough(
           savedReadingContext.walkthroughId!,
           savedReadingContext.stepId ?? undefined,
-          refreshedOverview
+          refreshedOverview,
+          current
         );
       } else if (!view.current.walkthrough && refreshedOverview.paths.length) {
         await openWalkthrough(
@@ -192,23 +186,24 @@ export function useReadingSession(options: ReadingEffects) {
             (path) => path.id === "checkout-" + config.backend
           )?.id || refreshedOverview.paths[0].id,
           undefined,
-          refreshedOverview
+          refreshedOverview,
+          current
         );
       } else if (hasWorkspaceChanged && view.current.walkthrough) {
         await openWalkthrough(
           view.current.walkthrough.id,
           undefined,
-          refreshedOverview
+          refreshedOverview,
+          current
         );
       }
     } catch (error) {
-      if (!isViewMounted.current) return;
+      if (!isViewMounted.current || !current()) return;
       if (errorMessage(error) === "Walkthrough not found.") {
         clearWalkthrough();
         workspaceSignature.current = "";
-      } else effects.current.fail(error);
-    } finally {
-      polling.current = false;
+      } else if (force) throw error;
+      else effects.current.fail(error);
     }
   }
   refreshAction.current = refresh;
@@ -228,8 +223,10 @@ export function useReadingSession(options: ReadingEffects) {
     })();
     const timer = setInterval(() => void refreshAction.current(), 2000);
     const unsubscribe = onRefresh(() => {
-      workspaceSignature.current = "";
-      void refreshAction.current();
+      if (!initialized.current) return; // Initial load already reads the newest workspace.
+      void refreshAction.current(true).catch((error: unknown) => {
+        if (isViewMounted.current) effects.current.fail(error);
+      });
     });
     return () => {
       isViewMounted.current = false;
@@ -288,15 +285,6 @@ export function useReadingSession(options: ReadingEffects) {
     if (view.current.walkthrough?.id === id) clearWalkthrough();
     workspaceSignature.current = "";
   }
-  async function selectRun(id: string) {
-    const saved = id === "example" ? null : await getRun(id);
-    setRunSelection(
-      saved ? { kind: "saved", run: saved } : { kind: "fixture" }
-    );
-  }
-  function acceptImportedRun(run: Run) {
-    setRunSelection({ kind: "saved", run });
-  }
   const currentStep = walkthrough?.steps.find(
     (step) => step.id === selectedStepId
   );
@@ -312,7 +300,6 @@ export function useReadingSession(options: ReadingEffects) {
     currentStep,
     position,
     tab,
-    runSelection,
     currentWalkthrough: () => view.current.walkthrough,
     acceptSavedWalkthrough,
     acceptOverview,
@@ -340,7 +327,5 @@ export function useReadingSession(options: ReadingEffects) {
     changeTab: (tab: ReadingContext["tab"]) => setTab(tab),
     move,
     refresh,
-    selectRun,
-    acceptImportedRun,
   };
 }

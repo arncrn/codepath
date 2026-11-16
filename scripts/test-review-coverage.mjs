@@ -5,7 +5,7 @@ import { chromium } from "playwright-core";
 import { gitProject, allChanges } from "../tests/fixtures/git-project.mjs";
 import { verifyCoverage, verifyGuideToggle } from "./review-coverage-check.mjs";
 import {
-  readSavedStep,
+  readReviewStep,
   chooseReviewFile,
   waitViewed,
 } from "./unified-review-check.mjs";
@@ -233,22 +233,27 @@ try {
   await authored
     .getByRole("heading", { name: "Aligned authored windows", exact: true })
     .waitFor();
-  await readSavedStep(page, "Independent authored step");
+  await readReviewStep(page, "Independent authored step");
   const alignment = await authored.evaluate((el) => {
     const rect = (selector) =>
       el.querySelector(selector).getBoundingClientRect().y;
     return [
-      rect('[data-git-side="before"] code[data-source-line="1"]'),
-      rect('[data-git-side="after"] code[data-source-line="2"]'),
+      rect('[data-current-side="before"] code[data-source-line="1"]'),
+      rect('[data-current-side="after"] code[data-source-line="2"]'),
     ];
   });
   assert.ok(
     Math.abs(alignment[0] - alignment[1]) < 2,
     `Authored real corresponding lines align despite insertion and independent title heights: ${alignment}`
   );
-  await readSavedStep(page, "Explicit independent excerpts");
-  const independent = authored.locator('[data-paired-step="unrelated"]');
-  assert.equal(await independent.locator("code[data-source-line]").count(), 2);
+  await readReviewStep(page, "Explicit independent excerpts");
+  const independent = authored.locator('[data-inline-explanation="unrelated"]');
+  assert.equal(await independent.count(), 2);
+  assert.equal(
+    await independent.locator("code[data-source-line]").count(),
+    0,
+    "An explanation does not create another source display"
+  );
   assert.equal(
     await independent
       .locator(".diff-padding,.diff-added,.diff-removed")
@@ -259,14 +264,22 @@ try {
   await page.locator(`[data-comparison-path="${saved.id}"]`).click();
   await chooseReviewFile(page, "unstaged", "authored.ts");
   await authored
-    .getByRole("button", { name: "Independent authored step", exact: true })
-    .click();
+    .getByRole("combobox", {
+      name: "Comparison explanation to edit",
+      exact: true,
+    })
+    .selectOption({ label: "Independent authored step" });
   await authored
     .getByRole("heading", { name: "Aligned authored windows", exact: true })
     .waitFor();
   assert.equal(
-    await authored.locator('[aria-current="step"]').getAttribute("aria-label"),
-    "Independent authored step"
+    await authored
+      .getByRole("combobox", {
+        name: "Comparison explanation to edit",
+        exact: true,
+      })
+      .inputValue(),
+    "alignment"
   );
   await verifyCoverage(page, f, "browser");
   await verifyGuideToggle(page, f, "browser");

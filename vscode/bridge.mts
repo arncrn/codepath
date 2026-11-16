@@ -108,7 +108,7 @@ export async function dispatchReadingContext(
       version: 1,
       walkthroughId: v.walkthroughId,
       stepId: v.stepId,
-      tab: v.tab,
+      tab: v.tab === "data" ? "notes" : v.tab,
       focusNonce: v.focusNonce,
     };
   };

@@ -65,7 +65,7 @@ try{
   assert.equal(await frame.locator('.function-context').textContent(),'No enclosing function');
   assert.equal(await frame.locator('.code-card .code > .function-context').count(),1);
   assert.equal(await frame.locator('.card-title .function-context').count(),0);
-  assert.equal(await frame.locator('#error').isVisible(),false);
+  assert.equal(await frame.locator('#error').isVisible(),false,await frame.locator('#error').textContent());
   assert.equal(await frame.getByRole('button',{name:'Callback role…',exact:true}).count(),0);
   assert.equal(await frame.evaluate(()=>window.CODEPATH_TOKEN),undefined);
   await frame.getByRole('button',{name:'Notes · 0',exact:true}).click();

@@ -112,17 +112,16 @@ try {
   await lateWalkthrough.release();
   await page.waitForLoadState("networkidle");
   await assertPath("b");
-  assert.match(await page.locator("#values").innerText(), /"b"/);
-
-  const aRuns = await service.call("list_runs", { walkthroughId: "a" });
-  const lateRun = await holdResponse(tool("get_run", aRuns[0].id));
-  await page.locator('[data-path="a"]').click();
-  await lateRun.arrived;
-  await choose("b");
-  await lateRun.release();
-  await assertPath("b");
-  assert.match(await page.locator("#values").innerText(), /"b"/);
-  assert.doesNotMatch(await page.locator("#values").innerText(), /"a"/);
+  assert.equal(await page.locator("#data-tab,#data-panel,#runs").count(), 0);
+  for (const id of ["a", "b"]) {
+    const runs = await service.call("list_runs", { walkthroughId: id });
+    const stored = await service.call("get_run", { id: runs[0].id });
+    assert.equal(
+      stored.events[0].output.path,
+      id,
+      "Stored runs remain owned and accessible through the API"
+    );
+  }
 
   await service.call("focus_step", { walkthroughId: "a", stepId: "a2" });
   const overview = await holdResponse(tool("project_overview"));
@@ -165,7 +164,7 @@ try {
   await page
     .locator("#note-text")
     .fill("Draft survives tab changes and polling");
-  await page.locator("#data-tab").click();
+  await page.locator("#variables-tab").click();
   await page.locator("#notes-tab").click();
   await service.call("add_note", {
     walkthroughId: "b",
@@ -212,20 +211,23 @@ try {
   await page.locator("#close-modal").click();
   await assertPath("a", "a2");
 
-  await page.locator("#data-tab").click();
-  await page.locator("#runs").selectOption("example");
+  await page.locator("#notes-tab").click();
   await service.call("add_note", {
     walkthroughId: "a",
     stepId: "a2",
-    body: "Refresh without changing manual run selection",
+    body: "Refresh without changing the Notes tab",
     author: "Test",
   });
   await page.locator("#refresh").click();
   await page.locator("#notes-tab").click();
   await page
-    .getByText("Refresh without changing manual run selection", { exact: true })
+    .getByText("Refresh without changing the Notes tab", { exact: true })
     .waitFor();
-  assert.equal(await page.locator("#runs").inputValue(), "example");
+  assert.equal(
+    await page.locator("#notes-tab").getAttribute("class"),
+    "active"
+  );
+  assert.equal(await page.locator("#runs").count(), 0);
 
   await choose("b");
   const deletedRead = await holdResponse(tool("get_walkthrough", "b"));
@@ -257,7 +259,7 @@ try {
   assert.equal(await page.locator('[data-path="b"]').count(), 0);
   assert.deepEqual(errors, []);
   console.log(
-    "UI refactor browser regressions passed. Late walkthrough/run/overview replies, polling and delayed-save drafts, same-step reset, modal focus deferral, manual run selection and revision-safe deletion with an outstanding read use the real service."
+    "UI refactor browser regressions passed. Late walkthrough/overview replies, preserved API runs without Data UI, polling and delayed-save drafts, same-step reset, modal focus deferral, Notes tab retention and revision-safe deletion with an outstanding read use the real service."
   );
 } finally {
   await browser?.close();

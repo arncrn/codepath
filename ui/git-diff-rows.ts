@@ -156,14 +156,23 @@ export interface FocusedDiffRows extends Omit<DiffRows, "before" | "after"> {
 // Focus is a display choice, not authored content. Only verified raw alignment
 // enters here. Keep every change plus three real aligned context rows; merging
 // windows and copying selected rows are linear, even for thousands of hunks.
-export function focusedRows(rows: DiffRows): FocusedDiffRows {
+export function focusedRows(
+  rows: DiffRows,
+  reveal?: { side: "before" | "after"; startLine: number; endLine: number }
+): FocusedDiffRows {
   const windows: { start: number; end: number }[] = [];
   for (let i = 0; i < rows.before.length; i++) {
     const a = rows.before[i],
       b = rows.after[i];
     if (
       !(a !== null && rows.removed.has(a)) &&
-      !(b !== null && rows.added.has(b))
+      !(b !== null && rows.added.has(b)) &&
+      !(
+        reveal &&
+        rows[reveal.side][i] !== null &&
+        rows[reveal.side][i]! >= reveal.startLine &&
+        rows[reveal.side][i]! <= reveal.endLine
+      )
     )
       continue;
     const start = Math.max(0, i - 3),

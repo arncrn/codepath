@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {
   ComparisonNotes,
@@ -7,17 +7,14 @@ import type {
 } from "../types.mjs";
 import { errorMessage } from "../types.mjs";
 import { getComparisonWalkthrough } from "./api";
-import { ComparisonAnnotations } from "./comparison-annotations";
 import type {
   ComparisonAnnotationContext,
   ComparisonDraft,
   ComparisonDrafts,
 } from "./comparison-annotations";
-import { diffRows, excerptRows, rawLineNumbers } from "./git-diff-rows";
-import { tokenizeSource } from "./source-syntax";
 
-// One owner for saved loading, annotation-only polling and in-memory drafts.
-// Guide actions deliberately know nothing about current query/file/progress.
+// One owner for guide loading, annotation-only polling and in-memory drafts.
+// Visibility is independent of permission to attach/edit against current code.
 export function useChangeReview(active: boolean) {
   const [id, setId] = useState<string | null>(null);
   const [walkthrough, setWalkthrough] = useState<ComparisonWalkthrough | null>(
@@ -28,7 +25,6 @@ export function useChangeReview(active: boolean) {
   const [error, setError] = useState("");
   const request = useRef(Symbol("guide"));
   const presentation = useRef(Symbol("guide presentation"));
-  const [savedOpen, setSavedOpen] = useState(false);
   const [loadVersion, setLoadVersion] = useState(0);
   const [drafts, setDrafts] = useState<ComparisonDrafts>({});
   const draftRef = useRef(drafts);
@@ -39,7 +35,6 @@ export function useChangeReview(active: boolean) {
   function select(next: string | null, step: string | null = null) {
     request.current = Symbol("guide selection");
     presentation.current = Symbol("guide presentation");
-    setSavedOpen(false);
     display(null);
     setError("");
     setStepId(step);
@@ -150,10 +145,6 @@ export function useChangeReview(active: boolean) {
     retire();
     setStepId(next);
   }
-  function expandSaved(open: boolean) {
-    retire();
-    setSavedOpen(open);
-  }
   return {
     id,
     select,
@@ -162,170 +153,55 @@ export function useChangeReview(active: boolean) {
     stepId,
     chooseStep,
     annotation,
-    savedOpen,
-    expandSaved,
+    drafts,
     retire,
   };
 }
 export type ChangeReview = ReturnType<typeof useChangeReview>;
 
-// Historical inspection is explicit and independent of current inventory success.
-// It never replaces current source or participates in Viewed progress.
-export function SavedVersions({ guide }: { guide: ChangeReview }) {
-  const walk = guide.walkthrough;
-  const step =
-    walk?.steps.find((step) => step.id === guide.stepId) ?? walk?.steps[0];
-  return (
-    <details
-      open={guide.savedOpen}
-      onToggle={(event) => {
-        if (event.currentTarget.open !== guide.savedOpen)
-          guide.expandSaved(event.currentTarget.open);
-      }}
-    >
-      <summary>Read saved versions (not current changes)</summary>
-      {guide.savedOpen && walk && step && (
-        <>
-          <p>
-            Historical authored source only. Inspecting it does not mark current
-            changes Viewed.
-          </p>
-          <nav className="comparison-steps" aria-label="Saved version steps">
-            {walk.steps.map((s) => (
-              <button
-                key={s.id}
-                aria-label={s.title}
-                aria-current={step.id === s.id ? "step" : undefined}
-                onClick={() => guide.chooseStep(s.id)}
-              >
-                {s.title} · {s.id}
-              </button>
-            ))}
-          </nav>
-          <SavedStep
-            key={walk.id + step.id + step.binding}
-            guide={guide}
-            step={step}
-          />
-        </>
-      )}
-    </details>
-  );
-}
 export function GuideDisplay({
   guide,
+  id = "git-comparisons",
   steps = guide.walkthrough?.steps ?? [],
   step: selectedStep,
   chooseStep = (step) => guide.chooseStep(step.id),
   children,
 }: {
   guide: ChangeReview;
+  id?: string;
   steps?: readonly ComparisonWalkthroughStep[];
   step?: ComparisonWalkthroughStep;
   chooseStep?: (step: ComparisonWalkthroughStep) => void;
   children?: ReactNode;
 }) {
-  const walk = guide.walkthrough;
-  const step =
-    selectedStep ?? steps.find((step) => step.id === guide.stepId) ?? steps[0];
+  const walk = guide.walkthrough,
+    step =
+      selectedStep ??
+      steps.find((step) => step.id === guide.stepId) ??
+      steps[0];
   return (
-    <section id="git-comparisons" className="guide-display">
-      {guide.error && <p role="alert">{guide.error}</p>}
+    <section id={id} className="guide-display">
       <h2>{walk?.title ?? "Opening guide…"}</h2>
-      {walk && step && (
-        <>
-          <nav
-            className="comparison-steps"
-            aria-label="Paired walkthrough steps"
+      {walk && step && steps.length > 1 && (
+        <label className="comparison-explanation-choice">
+          Comparison explanation to edit
+          <select
+            aria-label="Comparison explanation to edit"
+            value={step.id}
+            onChange={(event) => {
+              const item = steps.find((item) => item.id === event.target.value);
+              if (item && item.id !== step.id) chooseStep(item);
+            }}
           >
             {steps.map((item) => (
-              <button
-                key={item.id}
-                aria-label={item.title}
-                aria-current={item.id === step.id ? "step" : undefined}
-                onClick={() => {
-                  if (item.id !== step.id) chooseStep(item);
-                }}
-              >
+              <option key={item.id} value={item.id}>
                 {item.title}
-              </button>
+              </option>
             ))}
-          </nav>
-          {children ?? (
-            <SavedStep
-              key={walk.id + step.id + step.binding}
-              guide={guide}
-              step={step}
-              historical={false}
-            />
-          )}
-        </>
+          </select>
+        </label>
       )}
-      {!walk && children}
+      {children}
     </section>
-  );
-}
-
-function SavedStep({
-  guide,
-  step,
-  historical = true,
-}: {
-  guide: ChangeReview;
-  step: ComparisonWalkthroughStep;
-  historical?: boolean;
-}) {
-  const prepared = useMemo(() => {
-    const diff = diffRows(step);
-    return {
-      rows: diff ? excerptRows(diff, step.before, step.after) : null,
-      syntax: {
-        before: tokenizeSource(step.before.file, step.before.code.lines),
-        after: tokenizeSource(step.after.file, step.after.code.lines),
-      },
-    };
-  }, [step.before, step.after]);
-  return (
-    <div className="comparison-scroll saved-versions">
-      <div
-        className="walkthrough-columns"
-        style={{ gridTemplateRows: "auto auto auto" }}
-      >
-        {(["before", "after"] as const).map((side) => (
-          <section
-            key={side}
-            className="comparison-column"
-            data-comparison-column={side}
-          >
-            <h2>
-              {side === "before" ? "Before" : "After"}
-              {historical && (
-                <small>Saved versions · not current changes</small>
-              )}
-            </h2>
-            <article className="authored-card" data-paired-step={step.id}>
-              <ComparisonAnnotations
-                {...guide.annotation(step, side, () => true)}
-                surface="saved"
-                changedLines={
-                  (side === "before"
-                    ? prepared.rows?.removed
-                    : prepared.rows?.added) ?? new Set()
-                }
-                rowLines={
-                  prepared.rows?.[side] ??
-                  rawLineNumbers(step[side].content ?? "").filter(
-                    (line) =>
-                      line >= step[side].startLine && line <= step[side].endLine
-                  )
-                }
-                plainDiff={!prepared.rows}
-                syntax={prepared.syntax[side]}
-              />
-            </article>
-          </section>
-        ))}
-      </div>
-    </div>
   );
 }

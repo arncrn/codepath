@@ -8,8 +8,8 @@ const cards = [
     "Show the diagram and open its cards",
     "ui/walkthrough-flow.tsx",
     "WalkthroughFlow",
-    "Shows the saved diagram when its linked code still matches. Clicking a box opens its card and highlights the exact code it explains.",
-    "Before highlighting code, this check uses the latest walkthrough rather than the one used to draw the diagram. A changed or missing link cannot highlight different code.",
+    "Shows the saved diagram when its linked code still matches. Selecting a box reveals its card and exact code within the card row and code pane, without moving the page or diagram.",
+    "Selecting a box checks the latest walkthrough before selecting its card and exact source. Only the card row and selected code pane move; the page, diagram and keyboard focus stay put.",
     "current",
     "const current = latest.current;",
     "The latest walkthrough, checked when a diagram box is clicked. It may be newer than the one used to draw the diagram.",
@@ -94,8 +94,8 @@ const cards = [
 ];
 const blockAnchors = {
   "semantic-flow-view": [
-    "if (\n      !current ||",
-    "if (currentFlowSource(current, focus)) selectCard(focus);",
+    "const current = latest.current;",
+    "selectCard(focus);",
   ],
   "semantic-flow-render": [
     "if (cancelled) return;",

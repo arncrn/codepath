@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { readSavedStep, chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  readReviewStep,
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 import {
   composeReviewFixture,
   reviewMarkdown,
@@ -12,7 +16,7 @@ import {
 export async function verifyComposedReview(frame, f, label = "browser") {
   const { saved } = await composeReviewFixture(f);
   await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
-  const panel = frame.locator("#git-comparisons");
+  const panel = selectedReviewFile(frame);
   await frame
     .locator(".current-source-choices")
     .getByRole("button", { name: "Changes", exact: true })
@@ -24,32 +28,39 @@ export async function verifyComposedReview(frame, f, label = "browser") {
   await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
   assert.equal(
     await frame
-      .locator('[data-current-side="before"] .function-context')
+      .locator(
+        '[data-review-active="true"] [data-current-side="before"] .function-context'
+      )
       .textContent(),
     "Multiple functions",
     "Full raw source cannot inherit the excerpt-only function name"
   );
-  assert.equal(
-    await frame.locator("#current-changes .current-columns pre").count(),
-    2
-  );
-  await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
-  await readSavedStep(frame, "Common owner");
-  const left = panel.locator(
-    '[data-comparison-column="before"] .authored-card'
-  );
-  const right = panel.locator(
-    '[data-comparison-column="after"] .authored-card'
-  );
+  assert.equal(await panel.locator(".current-columns pre").count(), 2);
+  await frame
+    .locator("#current-changes")
+    .getByRole("checkbox", { name: "Show only changed sections", exact: true })
+    .uncheck();
+  await readReviewStep(frame, "Common owner");
+  const left = panel.locator('[data-current-side="before"]');
+  const right = panel.locator('[data-current-side="after"]');
   for (const [cards, names] of [
     [left, ["beforeOrder", "beforeOrder › anonymous"]],
     [right, ["indexOrder", "indexOrder › anonymous"]],
   ]) {
     for (let index = 0; index < 2; index++) {
-      await readSavedStep(frame, index ? "Nested owner" : "Common owner");
+      await readReviewStep(frame, index ? "Nested owner" : "Common owner");
       const card = cards.first();
       assert.equal(
         await card.locator(".review-source > .function-context").textContent(),
+        "Multiple functions",
+        "Full current source cannot inherit an excerpt-only function name"
+      );
+      const stored = await f.service.call("get_comparison_walkthrough", {
+        id: saved.id,
+      });
+      const side = cards === left ? "before" : "after";
+      assert.equal(
+        stored.steps[index][side].code.functionContext.name,
         names[index]
       );
       assert.equal(
@@ -58,16 +69,24 @@ export async function verifyComposedReview(frame, f, label = "browser") {
           .count(),
         0
       );
-      assert.equal(
-        await card.locator("code[data-source-line]").count(),
-        index ? 1 : 4
-      );
+      assert.equal(await card.locator("code[data-source-line]").count(), 8);
       const source = await card.locator(".review-source").boundingBox();
       const purpose = await card.locator(".authored-purpose").boundingBox();
-      assert.ok(source.y < purpose.y);
+      assert.ok(
+        purpose.y < source.y,
+        "Explanations precede the full source, rather than being buried at EOF"
+      );
+      const annotation = card.locator(
+        `[data-inline-explanation="${saved.steps[index].id}"]`
+      );
       for (const tab of ["Notes", "Variables"]) {
-        await card.getByRole("button", { name: tab, exact: true }).click();
-        const body = card.locator(".review-notes .markdown-body");
+        await annotation
+          .getByRole("button", {
+            name: new RegExp("^" + tab + "(?: · \\d+)?$"),
+            exact: true,
+          })
+          .click();
+        const body = annotation.locator(".review-notes .markdown-body");
         assert.equal(await body.locator("h2").textContent(), "Side note");
         assert.equal(await body.locator("strong").textContent(), "Exact");
         assert.equal(await body.locator("del").textContent(), "old");
@@ -85,11 +104,17 @@ export async function verifyComposedReview(frame, f, label = "browser") {
       }
     }
   }
-  await readSavedStep(frame, "Common owner");
-  const before = left.first(),
-    after = right.first();
+  await readReviewStep(frame, "Common owner");
+  const before = left
+      .first()
+      .locator(`[data-inline-explanation="${saved.steps[0].id}"]`),
+    after = right
+      .first()
+      .locator(`[data-inline-explanation="${saved.steps[0].id}"]`);
   for (const card of [before, after]) {
-    await card.getByRole("button", { name: "Variables", exact: true }).click();
+    await card
+      .getByRole("button", { name: /^Variables(?: · \d+)?$/, exact: true })
+      .click();
     await card
       .locator(".review-notes .note")
       .getByRole("button", { name: "Edit", exact: true })
@@ -144,7 +169,7 @@ export async function verifyComposedReview(frame, f, label = "browser") {
     const geometry = await panel.evaluate((element) =>
       ["before", "after"].map((side) => {
         const r = element
-          .querySelector(`[data-comparison-column="${side}"] .authored-card`)
+          .querySelector(`[data-current-side="${side}"] .current-file-card`)
           .getBoundingClientRect();
         return { x: r.x, y: r.y };
       })

@@ -21,6 +21,13 @@ const pendingHostRequests = new Map<
   }
 >();
 const refreshListeners = new Set<() => void>();
+const flowListeners = new Set<(message: unknown) => void>();
+export function onFlowMessage(listener: (message: unknown) => void) {
+  flowListeners.add(listener);
+  return () => {
+    flowListeners.delete(listener);
+  };
+}
 if (vscodeHost)
   window.addEventListener("message", (event: MessageEvent<unknown>) => {
     const hostMessage = event.data as {
@@ -29,6 +36,10 @@ if (vscodeHost)
       error?: string;
       result?: unknown;
     } | null;
+    if (hostMessage?.type?.startsWith("codepath.flow.")) {
+      for (const listener of flowListeners) listener(hostMessage);
+      return;
+    }
     if (hostMessage?.type === "codepath.refresh") {
       for (const listener of refreshListeners) listener();
       return;

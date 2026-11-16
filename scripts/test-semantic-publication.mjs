@@ -59,16 +59,19 @@ try {
     .locator('#flow-panel svg [data-flow-step="semantic-flow-svg"]')
     .first()
     .click();
+  assert.equal(
+    await page.locator(".code-card.active").getAttribute("data-step"),
+    "semantic-flow-svg",
+    "The node click selects its matching card directly"
+  );
   await page
     .locator('.code-card.active[data-step="semantic-flow-svg"]')
     .waitFor();
   await page.getByRole("button", { name: "Fit diagram", exact: true }).click();
   fs.mkdirSync(".cache/walkthrough-flow", { recursive: true });
-  await page
-    .locator("#flow-panel")
-    .screenshot({
-      path: ".cache/walkthrough-flow/actual-guide-source-fit.png",
-    });
+  await page.locator("#flow-panel").screenshot({
+    path: ".cache/walkthrough-flow/actual-guide-source-fit.png",
+  });
   fs.writeFileSync(
     ".cache/walkthrough-flow/publication-example.json",
     JSON.stringify(

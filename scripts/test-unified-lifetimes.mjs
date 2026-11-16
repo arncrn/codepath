@@ -91,7 +91,9 @@ try {
   }
   await page.goto(f.service.url + "?view=current-changes");
   const panel = page.locator("#current-changes"),
-    after = panel.locator('[data-git-side="after"]');
+    after = page.locator(
+      '#current-changes [data-review-active="true"] [data-git-side="after"]'
+    );
   await chooseReviewFile(page, "staged", "part.ts");
   const guide = page.locator(`[data-comparison-path="${saved.id}"]`),
     otherGuide = page.locator(`[data-comparison-path="${other.id}"]`);
@@ -220,6 +222,8 @@ try {
   await page
     .getByRole("button", { name: "Review changes", exact: true })
     .click();
+  await page.locator(`[data-comparison-path="${saved.id}"]`).click();
+  await chooseReviewFile(page, "staged", "part.ts");
   await after
     .getByRole("heading", { name: "Staged amount", exact: true })
     .waitFor();
@@ -254,7 +258,11 @@ try {
     false,
     "Canceled legacy intent must not enable focus; full-file Notes may load normally"
   );
-  assert.equal(await panel.locator("pre").count(), 2);
+  await panel.locator('[data-review-active="true"] pre').first().waitFor();
+  assert.equal(
+    await panel.locator('[data-review-active="true"] pre').count(),
+    2
+  );
   assert.deepEqual(errors, []);
   console.log(
     "PASS public async lifetimes: held guide A-B-A, same-guide exact link, old rejected ACK/error/finally vs new busy editor, hidden-poll suspension/draft resume, canceled legacy initial intent."

@@ -21,34 +21,31 @@ export function ComparisonChoices({
             aria-label="Show only changed sections"
             checked={display.checked}
             onChange={(event) => display.change(event.target.checked)}
-            data-comparison-path={
-              comparisons.length === 1 ? comparisons[0].id : undefined
-            }
             className={display.checked ? "selected" : ""}
           />
           Show only changed sections
         </label>
       )}
-      {(!display || comparisons.length > 1) &&
-        comparisons.map((walk) => (
-          <button
-            key={walk.id}
-            data-comparison-path={walk.id}
-            className={
-              walk.id === comparisonId && (!display || display.checked)
-                ? "selected"
-                : ""
-            }
-            onClick={() => openComparison?.(walk.id)}
-          >
-            {walk.title}
-          </button>
-        ))}
+      {comparisons.map((walk) => (
+        <button
+          key={walk.id}
+          data-comparison-path={walk.id}
+          className={
+            walk.id === comparisonId && (!display || display.checked)
+              ? "selected"
+              : ""
+          }
+          onClick={() => openComparison?.(walk.id)}
+        >
+          {walk.title}
+        </button>
+      ))}
     </>
   );
 }
 
 export function Sidebar({
+  hidden = false,
   overview,
   walkthroughId,
   comparisons = [],
@@ -60,6 +57,7 @@ export function Sidebar({
   connectAgent,
   fail,
 }: {
+  hidden?: boolean;
   overview: Overview | null;
   walkthroughId: string | undefined;
   comparisons?: ComparisonWalkthroughSummary[];
@@ -72,7 +70,7 @@ export function Sidebar({
   fail: (error: unknown) => void;
 }) {
   return (
-    <aside>
+    <aside id="project-navigation" hidden={hidden}>
       <div className="brand">
         <span>↳</span>
         <div>

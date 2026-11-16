@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { verifyFlowHover } from "./check-flow-hover.mjs";
+import { verifyFlowZoom } from "./check-flow-zoom.mjs";
+import { verifyFlowWindow } from "./check-flow-window.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -88,6 +91,11 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
   await frame.locator('[data-path="semantic"]').click();
   await frame.locator("#flow-tab").click();
   await frame.locator("#flow-panel svg .node").first().waitFor();
+  assert.equal(
+    await frame.locator("#flow-panel > p").count(),
+    0,
+    "Current Flow has no instruction or summary paragraphs"
+  );
   assert.equal(await frame.locator("#flow-panel svg .node").count(), 12);
   assert.equal(
     await frame.locator("#flow-panel svg .flowchart-link").count(),
@@ -139,6 +147,9 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
       );
     });
   await observeCsp();
+  await verifyFlowZoom(frame);
+  await verifyFlowHover(service, frame, walk);
+  await verifyFlowWindow(service, frame);
   async function exactFocus(node) {
     await frame
       .locator(`.code-card.active[data-step="${node.stepId}"]`)
@@ -170,34 +181,117 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
       await frame.locator(".code-card:not(.active) [data-flow-source]").count(),
       0
     );
-    const mark = card.locator("[data-flow-source]").first();
-    await frame.waitForFunction(() => {
-      const el = globalThis.document.querySelector(
-        ".code-card.active [data-flow-source]"
-      );
-      const r = el?.getBoundingClientRect();
-      return (
-        r &&
-        r.y >= 0 &&
-        r.y < globalThis.innerHeight &&
-        r.x >= 0 &&
-        r.x < globalThis.innerWidth
-      );
-    });
-    assert.ok(await mark.isVisible());
+    await frame.waitForFunction(
+      () => {
+        const rail = globalThis.document.querySelector("#rail");
+        const card = globalThis.document.querySelector(".code-card.active");
+        const pane = card?.querySelector(".code");
+        const mark = pane?.querySelector("[data-flow-source]");
+        if (!rail || !card || !pane || !mark) return false;
+        const r = rail.getBoundingClientRect(),
+          c = card.getBoundingClientRect(),
+          p = pane.getBoundingClientRect(),
+          m = mark.getBoundingClientRect();
+        return (
+          c.left >= r.left + rail.clientLeft - 1 &&
+          c.right <= r.left + rail.clientLeft + rail.clientWidth + 1 &&
+          m.left >= p.left + pane.clientLeft - 1 &&
+          m.left < p.left + pane.clientLeft + pane.clientWidth &&
+          m.top >= p.top + pane.clientTop - 1 &&
+          m.top < p.top + pane.clientTop + pane.clientHeight
+        );
+      },
+      undefined,
+      { timeout: 3000 }
+    );
+    assert.ok(
+      await card.locator("[data-flow-source]").count(),
+      "Selected code is marked AND revealed inside its pane"
+    );
   }
+  const scrollPositions = () =>
+    frame.evaluate(() => ({
+      fixed: ["#workspace", ".walkthrough-flow"].map((s) => {
+        const el = globalThis.document.querySelector(s),
+          r = el.getBoundingClientRect();
+        return [el.scrollLeft, el.scrollTop, r.x, r.y];
+      }),
+      railTop: globalThis.document.querySelector("#rail").scrollTop,
+      railLeft: globalThis.document.querySelector("#rail").scrollLeft,
+      panes: [...globalThis.document.querySelectorAll(".code-card")].map(
+        (card) => {
+          const pane = card.querySelector(".code");
+          return {
+            id: card.getAttribute("data-step"),
+            scroll: [pane.scrollLeft, pane.scrollTop],
+          };
+        }
+      ),
+    }));
   const beforeFocus = await service.call("get_walkthrough", { id: walk.id });
   for (const [i, node] of walk.flow.nodes.entries()) {
     const button = frame.locator(
       `#flow-panel svg .node[id*="-flowchart-s${i}-"]`
     );
+    await button.scrollIntoViewIfNeeded();
+    await button.focus();
+    const beforeScroll = await scrollPositions();
+    const svg = await frame.locator("#flow-panel svg").elementHandle();
     if (i % 3 === 0) await button.click();
-    else {
-      await button.focus();
-      await button.press(i % 3 === 1 ? "Enter" : "Space");
-    }
+    else await button.press(i % 3 === 1 ? "Enter" : "Space");
     await exactFocus(node);
+    await delay(80);
+    const afterScroll = await scrollPositions();
+    assert.deepEqual(
+      afterScroll.fixed,
+      beforeScroll.fixed,
+      "Page and diagram viewport stay fixed"
+    );
+    assert.equal(
+      afterScroll.railTop,
+      beforeScroll.railTop,
+      "Only horizontal card-rail movement is allowed"
+    );
+    assert.deepEqual(
+      afterScroll.panes.filter((p) => p.id !== node.stepId),
+      beforeScroll.panes.filter((p) => p.id !== node.stepId),
+      "Only the selected card code pane can move"
+    );
+    assert.equal(
+      await button.evaluate((el) => el === globalThis.document.activeElement),
+      true,
+      "Keyboard focus stays on the node"
+    );
+    assert.equal(await button.getAttribute("aria-pressed"), "true");
+    assert.equal(
+      await svg.evaluate(
+        (a, b) => a === b,
+        await frame.locator("#flow-panel svg").elementHandle()
+      ),
+      true,
+      "Selecting does not redraw Mermaid"
+    );
+    assert.equal(
+      await frame
+        .locator("#flow-panel")
+        .getByRole("button", { name: "Open code", exact: true })
+        .count(),
+      0,
+      "No extra navigation action"
+    );
   }
+  // Once revealed, manual local panning must not be undone by a poll.
+  await frame.evaluate(() => {
+    globalThis.document.querySelector("#rail").scrollLeft = 0;
+    globalThis.document.querySelector(".code-card.active .code").scrollTop = 0;
+  });
+  const manuallyPanned = await scrollPositions();
+  await delay(2300);
+  assert.deepEqual(
+    await scrollPositions(),
+    manuallyPanned,
+    "Polling does not keep re-revealing after manual scrolling"
+  );
   // Repeated same-card clicks must move focus; full-file toggles do not erase it.
   const first = frame.locator('#flow-panel svg .node[id*="-flowchart-s0-"]');
   await first.click();
@@ -220,11 +314,11 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
   await frame.evaluate(() => {
     const raf = globalThis.requestAnimationFrame;
     const calls = [];
-    const scroll = globalThis.HTMLElement.prototype.scrollIntoView;
+    const scroll = globalThis.HTMLElement.prototype.scrollTo;
     globalThis.flowFocusScrolls = [];
-    globalThis.HTMLElement.prototype.scrollIntoView = function (...args) {
-      if (this.hasAttribute("data-flow-source"))
-        globalThis.flowFocusScrolls.push(this.textContent);
+    globalThis.HTMLElement.prototype.scrollTo = function (...args) {
+      if (this.id === "rail" || this.classList.contains("code"))
+        globalThis.flowFocusScrolls.push(this.id || this.className);
       return scroll.apply(this, args);
     };
     globalThis.requestAnimationFrame = (cb) => {
@@ -235,7 +329,7 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
       globalThis.requestAnimationFrame = raf;
       // Invoke even canceled callbacks to test the owner token, not cancellation alone.
       for (const cb of calls.reverse()) cb(performance.now());
-      globalThis.HTMLElement.prototype.scrollIntoView = scroll;
+      globalThis.HTMLElement.prototype.scrollTo = scroll;
     };
     globalThis.document
       .querySelector('#flow-panel svg .node[id*="-flowchart-s0-"]')
@@ -256,8 +350,6 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
     .click();
   await first.click();
   await exactFocus(walk.flow.nodes[0]);
-  await frame.locator("#data-tab").click();
-  await frame.locator("#runs").selectOption(run.id);
   await frame.locator("#notes-tab").click();
   await frame.locator("#note-text").fill("Run-only unfinished draft");
   await frame.locator("#flow-tab").click();
@@ -390,9 +482,12 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
     .locator("#variables-panel")
     .getByText("n", { exact: true })
     .waitFor();
-  await frame.locator("#data-tab").click();
-  assert.equal(await frame.locator("#runs").inputValue(), run.id);
-  assert.match(await frame.locator("#values").innerText(), /preserved/);
+  assert.equal(await frame.locator("#data-tab,#data-panel,#runs").count(), 0);
+  assert.deepEqual(
+    await service.call("get_run", { id: run.id }),
+    run,
+    "Saved run survives navigation without a runtime-values surface"
+  );
   await frame.locator("#flow-tab").click();
   const before = await service.call("get_walkthrough", { id: walk.id });
   await delay(2300);
@@ -529,7 +624,7 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
     14
   );
   // Obsolete queued render cannot appear over an unauthored legacy guide.
-  await frame.locator("#data-tab").click();
+  await frame.locator("#notes-tab").click();
   await frame.evaluate(() => {
     const raf = globalThis.requestAnimationFrame;
     globalThis.restoreFlowRaf = () => (globalThis.requestAnimationFrame = raf);
@@ -628,8 +723,8 @@ export async function verifyWalkthroughFlow(service, getFrame, reopen) {
     await frame.evaluate(() => globalThis.flowCspViolations),
     []
   );
-  await frame.locator("#data-tab").click();
+  await frame.locator("#notes-tab").click();
   console.log(
-    "PASS semantic Flow: actual source branches/join/loop/imported call/recursion/unresolved; passive literal labels; exact source-block/UTF16 focus, same-card mouse/keyboard, guarded delayed scroll/hidden/stale lifetimes; per-card drafts, run, polling/context; stale/deleted sources; queued/in-flight render cancellation; no CSP violations."
+    "PASS semantic Flow: actual source branches/join/loop/imported call/recursion/unresolved; passive literal labels; click/Enter/Space visibly reveals matching card + exact source within rail/code pane ONLY, page/diagram/focus fixed, no extra button; same-card UTF16, hidden/stale lifetimes; per-card drafts, preserved stored run, polling/context; stale/deleted sources; queued/in-flight render cancellation; no CSP violations."
   );
 }

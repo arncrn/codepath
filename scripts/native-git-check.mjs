@@ -1,3 +1,4 @@
+import { readVariable } from "./unified-review-check.mjs";
 /* global document, getSelection, getComputedStyle, MouseEvent -- Native DOM callbacks. */
 import fs from "node:fs";
 import path from "node:path";
@@ -8,10 +9,22 @@ import { gitEnvironment, allChanges } from "../tests/fixtures/git-project.mjs";
 import { verifyGlobalFocus } from "./global-focused-check.mjs";
 import { verifyAuthoredHunks } from "./authored-hunks-check.mjs";
 import { verifyComposedReview } from "./composed-review-check.mjs";
+import { verifyReviewNavigation } from "./check-review-navigation.mjs";
+import { verifyFileStream } from "./check-file-stream.mjs";
+import { verifyInlineReviewNotes } from "./inline-review-notes-check.mjs";
+import { verifyWalkthroughReviewNotes } from "./walkthrough-review-notes-check.mjs";
+import { verifySingleReviewSource } from "./single-review-source-check.mjs";
+import { verifyReviewFlow } from "./review-flow-check.mjs";
+import { verifyReviewComparisonFlow } from "./review-comparison-flow-check.mjs";
+import { verifyAfterFlow } from "./after-flow-check.mjs";
+import { verifyFlowChangeColours } from "./flow-change-colours-check.mjs";
+import { verifyRefresh } from "./refresh-check.mjs";
+import { verifyNoDataUi } from "./no-data-ui-check.mjs";
 import { verifyCoverage, verifyGuideToggle } from "./review-coverage-check.mjs";
 import {
   chooseReviewFile,
-  readSavedStep,
+  selectedReviewFile,
+  readReviewStep,
   assertParallel,
 } from "./unified-review-check.mjs";
 
@@ -47,8 +60,33 @@ export async function verifyNativeGit(frame, root) {
     path.join(root, "native-git.ts"),
     "const value = 3;\nconsole.log(value);\n"
   );
-  const service = { call: (name, args) => callTool(root, name, args) },
-    list = await allChanges(service);
+  const service = { call: (name, args) => callTool(root, name, args) };
+  if (process.env.CODEPATH_TEST_NO_DATA_ONLY === "1") {
+    await verifyNoDataUi(frame, {
+      root,
+      service,
+      git,
+      write: (file, text) => fs.writeFileSync(path.join(root, file), text),
+    });
+    return;
+  }
+  if (process.env.CODEPATH_TEST_REFRESH_ONLY === "1") {
+    await verifyRefresh(frame, {
+      service,
+      git,
+      write: (file, text) => fs.writeFileSync(path.join(root, file), text),
+    });
+    return;
+  }
+  if (process.env.CODEPATH_TEST_FLOW_COLOURS_ONLY === "1") {
+    await verifyFlowChangeColours(frame, {
+      service,
+      git,
+      write: (file, text) => fs.writeFileSync(path.join(root, file), text),
+    });
+    return;
+  }
+  const list = await allChanges(service);
   const authoredSide = (title, purpose, endLine = 1) => ({
     title,
     purpose,
@@ -94,18 +132,23 @@ export async function verifyNativeGit(frame, root) {
     steps,
   });
   await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
-  const panel = frame.locator("#current-changes"),
-    left = panel.locator('[data-git-side="before"]'),
-    right = panel.locator('[data-git-side="after"]');
+  const controls = frame.locator("#current-changes"),
+    panel = selectedReviewFile(frame),
+    left = panel.locator('[data-current-side="before"]'),
+    right = panel.locator('[data-current-side="after"]');
+  // Review entry now reveals the ordinary card's Notes, which may be outside
+  // this comparison. This scenario explicitly tests native-git.ts instead.
+  await chooseReviewFile(frame, "staged", "native-git.ts");
   await panel.locator(".guide-display pre").first().waitFor();
-  const inventory = await panel.locator(".git-file-list").elementHandle();
+  const inventory = await controls.locator(".git-file-list").elementHandle();
   await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
   await chooseReviewFile(frame, "staged", "native-git.ts");
   assert.equal(await panel.locator(".current-columns pre").count(), 2);
+  await verifyFileStream(frame);
   await frame.locator(`[data-comparison-path="${saved.id}"]`).click();
   await panel.locator(".guide-display pre").first().waitFor();
   assert.equal(await panel.locator(".current-columns").count(), 1);
-  const currentInventory = await panel
+  const currentInventory = await controls
     .locator(".git-file-list")
     .elementHandle();
   assert.equal(
@@ -116,7 +159,7 @@ export async function verifyNativeGit(frame, root) {
     ["staged", "1", "2", 1],
     ["unstaged", "2", "3", 2],
   ]) {
-    await readSavedStep(
+    await readReviewStep(
       frame,
       group === "staged" ? "Stage the constant" : "Report the saved value"
     );
@@ -138,10 +181,11 @@ export async function verifyNativeGit(frame, root) {
     );
     assert.equal(await left.locator(".diff-removed").count(), 1);
     assert.equal(await right.locator(".diff-added").count(), additions);
-    await assertParallel(frame, panel.locator(".walkthrough-columns"));
+    await assertParallel(frame, panel.locator(".current-columns"));
   }
+  await verifyFileStream(frame);
   const theme = await panel
-    .locator('[data-comparison-column="before"] .authored-card')
+    .locator('[data-current-side="before"] .current-file-card')
     .evaluate((e) => ({
       card: getComputedStyle(e).backgroundColor,
       host: getComputedStyle(document.documentElement).backgroundColor,
@@ -183,6 +227,7 @@ export async function verifyNativeGit(frame, root) {
   );
   await note.getByRole("button", { name: "Edit", exact: true }).click();
   await after.getByLabel("Note text").fill("Edited native attachment");
+  await verifyReviewNavigation(frame);
   await after.getByRole("button", { name: "Save note", exact: true }).click();
   const edited = after
     .locator(".note")
@@ -200,7 +245,9 @@ export async function verifyNativeGit(frame, root) {
   ).steps[1].annotations.notes.find((n) => n.id === human.id);
   assert.equal(history.archived, true);
   assert.equal(history.history.length, 2);
-  await after.getByRole("button", { name: "Variables", exact: true }).click();
+  await after
+    .getByRole("button", { name: /^Variables(?: · \d+)?$/, exact: true })
+    .click();
   await after
     .getByText("unstaged after named value", { exact: true })
     .waitFor();
@@ -214,12 +261,14 @@ export async function verifyNativeGit(frame, root) {
   await panel.screenshot({
     path: path.join(screenshots, "unified-native-matched.png"),
   });
-  await panel.getByRole("button", { name: "Compare", exact: true }).click();
-  await panel.getByLabel("Current base branch").selectOption("refs/heads/main");
-  await panel
+  await controls.getByRole("button", { name: "Compare", exact: true }).click();
+  await controls
+    .getByLabel("Current base branch")
+    .selectOption("refs/heads/main");
+  await controls
     .getByLabel("Current target", { exact: true })
     .selectOption("refs/heads/equal");
-  await panel
+  await controls
     .getByText("No allowed-path differences.", { exact: true })
     .waitFor();
   assert.equal(
@@ -227,15 +276,24 @@ export async function verifyNativeGit(frame, root) {
     0,
     "Equal current choices do not display unrelated saved code"
   );
-  await panel.getByText(/different comparison choices/).waitFor();
-  await readSavedStep(frame, "Stage the constant");
   assert.equal(
-    await panel
-      .locator('.saved-versions [data-git-side="after"] code[data-source-line]')
-      .first()
-      .innerText(),
-    "const value = 2;"
+    await controls
+      .getByText("Saved guide uses different comparison choices.", {
+        exact: true,
+      })
+      .count(),
+    0,
+    "Requested status omitted; unrelated saved code is still refused"
   );
+  await readReviewStep(frame, "Stage the constant");
+  await panel.getByText("staged after block", { exact: true }).waitFor();
+  await readVariable(panel, "staged after named value");
+  assert.equal(
+    await controls.locator("pre").count(),
+    0,
+    "Equal choices retain explanations, not a second saved code display"
+  );
+  assert.ok((await panel.getByText(/Out of date/).count()) > 0);
   for (const forbidden of [
     "Capture review",
     "Review identity",
@@ -243,7 +301,7 @@ export async function verifyNativeGit(frame, root) {
     "Snapshot provenance",
     "Repair source reference",
   ])
-    assert.ok(!(await panel.innerText()).includes(forbidden));
+    assert.ok(!(await controls.innerText()).includes(forbidden));
   assert.equal(
     await frame.evaluate(() => globalThis.CODEPATH_TOKEN),
     undefined
@@ -270,10 +328,16 @@ export async function verifyNativeGit(frame, root) {
   await verifyGuideToggle(frame, fixture, "native");
   await verifyGlobalFocus(frame, fixture, saved.id, "native");
   await verifyAuthoredHunks(frame, fixture, "native");
+  await verifyInlineReviewNotes(frame, fixture);
   await frame
     .getByRole("button", { name: "Back to walkthrough", exact: true })
     .click();
+  await verifyWalkthroughReviewNotes(frame, fixture);
+  await verifySingleReviewSource(frame, fixture);
+  await verifyReviewFlow(frame, fixture);
+  await verifyReviewComparisonFlow(frame, fixture);
+  await verifyAfterFlow(frame, fixture);
   console.log(
-    "PASS native unified review: restricted CSP/host transport, full paired sources/geometry, independent purposes/Notes/Variables, annotation edit/delete/history/palette, real comparison choices and explicit saved access."
+    "PASS native unified review: restricted CSP/host transport, full paired sources/geometry, independent purposes/Notes/Variables, annotation edit/delete/history/palette, real comparison choices and always-inline outdated explanations."
   );
 }

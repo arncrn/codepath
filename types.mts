@@ -799,6 +799,7 @@ export interface ProjectService extends ToolClient {
 }
 export interface AppConfig {
   host?: "vscode";
+  view?: "flow";
   demo: boolean;
   backend: "node" | "go";
   root: string;

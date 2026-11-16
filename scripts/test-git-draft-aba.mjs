@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { gitProject } from "../tests/fixtures/git-project.mjs";
 import { authorFixture, side } from "../tests/fixtures/authored-comparison.mjs";
-import { readSavedStep, chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  readReviewStep,
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 
 const cleanup = [];
 const f = await gitProject({ after: (fn) => cleanup.push(fn) });
@@ -33,12 +37,19 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(f.service.url + "?view=changes");
-  const panel = page.locator("#current-changes");
-  const after = panel.locator('[data-git-side="after"]');
-  const before = panel.locator('[data-git-side="before"]');
+  const after = selectedReviewFile(page).locator('[data-current-side="after"]');
+  const before = selectedReviewFile(page).locator(
+    '[data-current-side="before"]'
+  );
   const second = after;
   const button = (scope, name) =>
-    scope.getByRole("button", { name, exact: true });
+    scope.getByRole("button", {
+      name:
+        name === "Notes" || name === "Variables"
+          ? new RegExp("^" + name + "(?: · \\d+)?$")
+          : name,
+      exact: true,
+    });
   const choose = async (walk, title) => {
     await chooseReviewFile(page, "staged", "part.ts");
     await page.locator(`[data-comparison-path="${walk.id}"]`).click();
@@ -49,13 +60,13 @@ try {
   await button(after, "Write note").click();
   await after.getByLabel("Note text").fill("Independent walkthrough draft");
   await choose(saved, "Staged amount");
-  await readSavedStep(page, "Expand the calculation");
+  await readReviewStep(page, "Expand the calculation");
   await second
     .getByRole("heading", { name: "Expanded saved calculation", exact: true })
     .waitFor();
   await button(second, "Write note").click();
   await second.getByLabel("Note text").fill("Independent second card draft");
-  await readSavedStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
   await before
     .getByRole("heading", { name: "Original amount", exact: true })
     .waitFor();
@@ -159,7 +170,7 @@ try {
     await before.getByLabel("Note text").inputValue(),
     "Independent before draft"
   );
-  await readSavedStep(page, "Expand the calculation");
+  await readReviewStep(page, "Expand the calculation");
   await second
     .getByRole("heading", { name: "Expanded saved calculation", exact: true })
     .waitFor();

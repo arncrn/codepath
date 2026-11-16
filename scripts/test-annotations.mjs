@@ -127,7 +127,7 @@ try {
   await page
     .locator("#note-text")
     .fill("A draft preserved across annotation reveals");
-  await page.locator("#data-tab").click();
+  await page.locator("#flow-tab").click();
   await value.focus();
   await value.press("Space");
   assert.equal(

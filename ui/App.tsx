@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComparisonWalkthroughSummary } from "../types.mjs";
 import { listComparisonWalkthroughs } from "./api";
 import { useChangeReview } from "./change-reviews";
@@ -8,12 +8,15 @@ import { useAnnotationSession } from "./annotation-session";
 import { useAnnotationEditor } from "./annotation-editor";
 import { NotesPanel, useNoteDraft } from "./notes";
 import { Dialogs, useDialogs } from "./dialogs";
-import { RunPanel } from "./run-panel";
 import { WalkthroughFlow } from "./walkthrough-flow";
+import { useFlowWindow } from "./flow-window";
+import type { ReviewFlowRequest } from "./review-flow";
+import type { ReviewFlowDisplay } from "./review-flow-presentation";
 import { SourceCards, useSourceCards } from "./source-cards";
 import { SourceMenu } from "./source-menu";
 import { createWalkthroughCommands } from "./walkthrough-commands";
 import { useReadingSession } from "./reading-session";
+import { useManualRefresh, type RefreshTarget } from "./manual-refresh";
 import { Sidebar, ComparisonChoices } from "./sidebar";
 import { DetailPanels, PathHeader, WorkspaceHeader } from "./workspace-layout";
 
@@ -28,6 +31,7 @@ export function App() {
     new URLSearchParams(globalThis.location.search).get("view") === "changes"
   );
   const [focused, setFocused] = useState(false);
+  const [reviewNavigationHidden, setReviewNavigationHidden] = useState(false);
   const guide = useChangeReview(reviewOpen);
   const [comparisons, setComparisons] = useState<
     ComparisonWalkthroughSummary[]
@@ -47,6 +51,53 @@ export function App() {
     clearFlowSource: sourceDisplay.clearFlowSource,
     fail,
   });
+  const [reviewRefreshTarget, setReviewRefreshTarget] =
+    useState<RefreshTarget | null>(null);
+  const refreshReader = useRef(reader.refresh);
+  refreshReader.current = reader.refresh;
+  const refreshTarget = useMemo<RefreshTarget>(
+    () => ({
+      current: () => !reviewOpen || !!reviewRefreshTarget?.current(),
+      run: async (current) => {
+        await Promise.all([
+          refreshReader.current(true, current),
+          reviewOpen ? reviewRefreshTarget?.run(current) : undefined,
+        ]);
+      },
+    }),
+    [reviewOpen, reader.walkthrough?.id, guide.id, reviewRefreshTarget]
+  );
+  const manualRefresh = useManualRefresh(refreshTarget);
+  const [reviewFlowRequest, setReviewFlowRequest] =
+    useState<ReviewFlowRequest | null>(null);
+  const [reviewFlowDisplay, setReviewFlowDisplay] =
+    useState<ReviewFlowDisplay | null>(null);
+  const flowWindow = useFlowWindow(
+    reviewOpen ? (reviewFlowDisplay?.walkthrough ?? null) : reader.walkthrough,
+    !dialogs.modal && (!reviewOpen || !!reviewFlowDisplay?.walkthrough),
+    (focus) =>
+      reviewOpen
+        ? setReviewFlowRequest({
+            focus,
+            token: Symbol("detached review Flow"),
+            contextKey: reviewFlowDisplay?.key,
+          })
+        : reader.selectFlowCard(focus),
+    fail,
+    reviewOpen ? "review" : "walkthrough",
+    reviewOpen ? (reviewFlowDisplay?.key ?? "pending-review") : null,
+    reviewOpen && reviewFlowDisplay?.mode === "after"
+      ? {
+          side: "after",
+          label: reviewFlowDisplay.label,
+          changes: reviewFlowDisplay.changes,
+          message:
+            reviewFlowDisplay.message.length <= 1900
+              ? reviewFlowDisplay.message
+              : "After Flow is unavailable. See the original reader for details.",
+        }
+      : undefined
+  );
   useEffect(() => {
     let cancelled = false;
     void listComparisonWalkthroughs()
@@ -66,10 +117,6 @@ export function App() {
       cancelled = true;
     };
   }, [reader.overview?.revision]);
-  useEffect(() => {
-    if (reviewOpen && !guide.id && comparisons[0])
-      guide.select(comparisons[0].id);
-  }, [reviewOpen, guide.id, comparisons]);
   const annotations = useAnnotationSession({
     walkthroughId: reader.walkthrough?.id,
     selectedStepId: reader.selectedStepId,
@@ -102,20 +149,17 @@ export function App() {
   });
   function changeFocus(checked: boolean) {
     initialGuide.current = false;
-    if (guide.savedOpen) guide.expandSaved(false);
     setFocused(checked);
   }
   function openComparison(id: string, step?: string) {
     initialGuide.current = false;
-    const checked = !(
-      reviewOpen &&
-      focused &&
-      guide.id === id &&
-      step === undefined
-    );
+    if (reviewOpen && guide.id === id && step === undefined) {
+      setFocused((value) => !value);
+      return;
+    }
     guide.retire();
-    setFocused(checked);
-    if (checked) guide.select(id, step);
+    setFocused(true);
+    guide.select(id, step);
     setReviewOpen(true);
   }
   function chooseSource(file?: string) {
@@ -126,6 +170,7 @@ export function App() {
   return (
     <>
       <Sidebar
+        hidden={reviewOpen && reviewNavigationHidden}
         overview={reader.overview}
         walkthroughId={reviewOpen ? undefined : reader.walkthrough?.id}
         comparisons={reviewOpen ? [] : comparisons}
@@ -147,23 +192,50 @@ export function App() {
           overview={reader.overview}
           error={error}
           dismissError={() => setError("")}
-          refresh={() => void reader.refresh(true)}
+          refresh={() => void manualRefresh.refresh()}
+          refreshBusy={manualRefresh.busy}
+          refreshMessage={manualRefresh.message}
+          refreshFailed={manualRefresh.failed}
         />
         <div className="review-entry">
           <button
             onClick={() => {
               initialGuide.current = false;
               guide.retire();
+              if (!reviewOpen) guide.select(null);
               setReviewOpen((value) => !value);
             }}
           >
             {reviewOpen ? "Back to walkthrough" : "Review changes"}
           </button>
+          {reviewOpen && (
+            <button
+              type="button"
+              className="secondary"
+              aria-expanded={!reviewNavigationHidden}
+              aria-controls="project-navigation comparison-navigation"
+              onClick={() => setReviewNavigationHidden((value) => !value)}
+            >
+              {reviewNavigationHidden ? "Show navigation" : "Hide navigation"}
+            </button>
+          )}
         </div>
         <CurrentChanges
           active={reviewOpen}
+          navigationHidden={reviewNavigationHidden}
           guide={guide}
+          walkthrough={guide.id ? null : reader.walkthrough}
+          flowWalkthrough={reader.walkthrough}
+          walkthroughStepId={guide.id ? null : reader.selectedStepId}
           focused={focused}
+          flowRequest={reviewFlowRequest}
+          flowBlocked={!!dialogs.modal}
+          popOutFlow={flowWindow.open}
+          flowPopOutBusy={flowWindow.busy}
+          onFlowDisplay={setReviewFlowDisplay}
+          onRefreshTarget={setReviewRefreshTarget}
+          manualRefresh={() => void manualRefresh.refresh()}
+          refreshBusy={manualRefresh.busy}
           openGuide={openComparison}
           guideChoices={
             reviewOpen && (
@@ -245,21 +317,12 @@ export function App() {
             changeTab={reader.changeTab}
             navigate={reader.move}
           >
-            <RunPanel
-              walkthroughId={reader.walkthrough?.id}
-              currentStep={reader.currentStep}
-              overview={reader.overview}
-              selection={reader.runSelection}
-              selectRun={reader.selectRun}
-              acceptImportedRun={reader.acceptImportedRun}
-              refresh={reader.refresh}
-              hidden={reader.tab !== "data"}
-              fail={fail}
-            />
             <WalkthroughFlow
               walkthrough={reader.walkthrough}
-              hidden={reviewOpen || reader.tab !== "flow"}
+              hidden={reviewOpen || !!dialogs.modal || reader.tab !== "flow"}
               selectCard={reader.selectFlowCard}
+              popOut={flowWindow.open}
+              popOutBusy={flowWindow.busy}
             />
             <NotesPanel
               currentStep={reader.currentStep}

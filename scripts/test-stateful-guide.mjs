@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { gitProject } from "../tests/fixtures/git-project.mjs";
 import { authorFixture } from "../tests/fixtures/authored-comparison.mjs";
-import { waitViewed } from "./unified-review-check.mjs";
+import {
+  waitViewed,
+  selectedReviewFile,
+  chooseReviewFile,
+} from "./unified-review-check.mjs";
+import { verifyReviewNavigation } from "./check-review-navigation.mjs";
 
 const cleanup = [];
 const f = await gitProject({ after: (close) => cleanup.push(close) });
@@ -29,11 +34,9 @@ try {
   await page.goto(f.service.url + "?view=current-changes");
   const panel = page.locator("#current-changes"),
     guide = page.locator(`[data-comparison-path="${saved.id}"]`),
-    after = panel.locator('[data-current-side="after"]');
-  const select = (group, file) =>
-    panel
-      .getByRole("button", { name: `Open ${group} ${file}`, exact: true })
-      .click();
+    source = selectedReviewFile(page),
+    after = source.locator('[data-current-side="after"]');
+  const select = (group, file) => chooseReviewFile(page, group, file);
   const enabled = async (value) =>
     assert.equal(
       (await guide.getAttribute("class")).includes("selected"),
@@ -61,28 +64,29 @@ try {
     await after.locator('code[data-source-line="1"]').innerText(),
     "const amount = 3;"
   );
-  assert.equal(await panel.locator("pre").count(), 2);
-  assert.equal(await panel.locator(".current-columns").count(), 1);
+  assert.equal(await source.locator("pre").count(), 2);
+  assert.equal(await source.locator(".current-columns").count(), 1);
   await after.getByRole("button", { name: "Write note", exact: true }).click();
   await after.getByLabel("Note text").fill("Independent unstaged draft");
+  await verifyReviewNavigation(page);
   await select("untracked", "other.ts");
   await enabled(true);
-  await panel
-    .locator(".current-diff-host > h2")
+  await source
+    .locator(".review-file-heading h2")
     .filter({ hasText: "other.ts" })
     .waitFor();
   assert.equal(
-    await panel
+    await source
       .locator('[data-current-side="after"] code[data-source-line]')
       .count(),
     3
   );
-  assert.equal(await panel.locator(".guide-display").count(), 0);
+  assert.equal(await source.locator(".guide-display").count(), 0);
   assert.equal(
-    await panel.locator(".current-columns .authored-purpose").count(),
+    await source.locator(".current-columns .authored-purpose").count(),
     0
   );
-  assert.equal(await panel.locator("pre").count(), 2);
+  assert.equal(await source.locator("pre").count(), 2);
   const viewed = panel.getByLabel("Viewed untracked other.ts", { exact: true });
   await viewed.click();
   await waitViewed(page, "Viewed untracked other.ts", true);
@@ -98,20 +102,22 @@ try {
   );
   await guide.click();
   await enabled(false);
-  await panel
+  await source
     .locator('[data-current-side="after"] code[data-source-line="2"]')
     .waitFor();
   await select("unstaged", "part.ts");
   await enabled(false);
-  await panel
+  await source
     .locator('[data-current-side="after"] code[data-source-line="4"]')
     .waitFor();
-  assert.equal(await panel.locator(".guide-display").count(), 1);
+  assert.equal(await source.locator(".guide-display").count(), 1);
   assert.equal(
-    await panel.getByRole("button", { name: "Notes", exact: true }).count(),
+    await source
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2
   );
-  assert.equal(await panel.locator(".optional-explanations").count(), 0);
+  assert.equal(await source.locator(".optional-explanations").count(), 0);
   await guide.click();
   await enabled(true);
   await after
@@ -144,8 +150,8 @@ try {
   await after.getByRole("button", { name: "Save note", exact: true }).click();
   await seen;
   await select("untracked", "other.ts");
-  await panel
-    .locator(".current-diff-host > h2")
+  await source
+    .locator(".review-file-heading h2")
     .filter({ hasText: "other.ts" })
     .waitFor();
   await select("unstaged", "part.ts");
@@ -181,6 +187,7 @@ try {
   );
   await enabled(true);
   assert.equal(await viewed.isChecked(), true);
+  await verifyReviewNavigation(page);
   assert.deepEqual(
     await panel
       .locator(".git-file-list .changed-file > button")
@@ -215,6 +222,32 @@ try {
     "set_git_viewed",
     "save_walkthrough_comparison_note",
   ]);
+  await page
+    .getByRole("button", { name: "Hide navigation", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Back to walkthrough", exact: true })
+    .click();
+  assert.equal(
+    await page.locator("aside").isVisible(),
+    true,
+    "Walkthrough navigation is restored outside review"
+  );
+  await page
+    .getByRole("button", { name: "Review changes", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Show navigation", exact: true })
+    .waitFor();
+  assert.equal(
+    await page.locator("aside").isVisible(),
+    false,
+    "Review keeps its local width preference when revisited"
+  );
+  await page
+    .getByRole("button", { name: "Show navigation", exact: true })
+    .click();
+  assert.equal(await page.locator("aside").isVisible(), true);
   assert.deepEqual(errors, []);
   console.log(
     "PASS persistent on/off file navigation; staged/unstaged same-path excerpts follow exact file/group; unmatched file full-diff fallback; one code display, list/Viewed/drafts/source IDs preserved; held old file ACK cannot clear new editor."

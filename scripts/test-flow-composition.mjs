@@ -50,12 +50,17 @@ try {
     0,
     "Hidden ordinary Flow disposes its render rather than working behind B"
   );
-  const before = panel
-    .locator('[data-comparison-column="before"] .authored-card')
-    .first();
-  const after = panel
-    .locator('[data-comparison-column="after"] .authored-card')
-    .first();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Read saved guide source", exact: true })
+      .count(),
+    0
+  );
+  await panel.locator(".current-columns").waitFor();
+  const before = panel.locator(
+    '[data-current-side="before"] .current-file-card'
+  );
+  const after = panel.locator('[data-current-side="after"] .current-file-card');
   assert.ok((await after.boundingBox()).x > (await before.boundingBox()).x);
   await page.locator('[data-path="composed-flow"]').click();
   await page.locator("#flow-panel svg .node").first().waitFor();
@@ -69,6 +74,11 @@ try {
     .locator('#flow-panel svg [data-flow-step="helper"]')
     .first()
     .click();
+  assert.equal(
+    await page.locator(".code-card.active").getAttribute("data-step"),
+    "helper",
+    "The node click itself selects its correct card"
+  );
   await page.locator('.code-card.active[data-step="helper"]').waitFor();
   await page.locator("#notes-tab").click();
   assert.equal(await page.locator("#note-text").inputValue(), "");

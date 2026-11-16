@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 
 // Public DOM actions shared by browser and disposable native journeys.
+export function selectedReviewFile(frame) {
+  return frame.locator(
+    '#current-changes [data-review-active="true"], #current-changes [data-unmatched-active="true"]'
+  );
+}
 export async function waitViewed(frame, label, checked) {
   await frame
     .getByRole("checkbox", { name: label, exact: true })
@@ -20,34 +25,54 @@ export async function chooseReviewFile(frame, group, file) {
   }
   await target.click();
   await target.and(panel.locator('[aria-current="true"]')).waitFor();
-  await panel
-    .locator(".current-diff-host .git-source-path")
+  await selectedReviewFile(frame)
+    .locator(".git-source-path")
     .filter({ hasText: file })
     .first()
     .waitFor();
   return panel;
 }
-export async function readSavedStep(frame, title) {
-  const openSaved = frame.getByRole("button", {
-    name: "Read saved guide source",
-    exact: true,
-  });
-  if (
-    !(await frame
-      .getByRole("button", { name: "Back to current diff", exact: true })
-      .count())
-  ) {
-    await openSaved.waitFor();
-    await openSaved.click();
-  }
-  const panel = frame.locator("#git-comparisons");
-  if (title)
-    await panel
-      .getByRole("navigation", { name: "Paired walkthrough steps" })
-      .getByRole("button", { name: title, exact: true })
+export async function readReviewStep(frame, title) {
+  const panel = frame.locator("#current-changes");
+  let source;
+  if (title) {
+    const heading = panel
+      .locator("[data-review-step-title]")
+      .filter({
+        hasText: new RegExp(
+          "^" + title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$"
+        ),
+      })
+      .first();
+    const article = heading.locator("xpath=ancestor::article[1]");
+    await article
+      .getByRole("button", { name: /^Notes and Variables for / })
+      .first()
       .click();
-  await panel.locator(".saved-versions").waitFor();
-  return panel.locator(".saved-versions");
+    const picker = article.getByRole("combobox", {
+      name: "Comparison explanation to edit",
+      exact: true,
+    });
+    if (await picker.count()) await picker.selectOption({ label: title });
+    source = article;
+  } else source = selectedReviewFile(frame);
+  await source.waitFor();
+  if (await source.getAttribute("data-review-file"))
+    await source
+      .locator('.current-file-body[data-source-state="ready"]')
+      .waitFor();
+  await source.locator("[data-inline-explanation]").first().waitFor();
+  return source.locator(".current-columns,.unmatched-explanation-columns");
+}
+export async function readVariable(scope, text) {
+  const body = scope.getByText(text, { exact: true });
+  const owner = body.locator(
+    "xpath=ancestor::*[@data-inline-explanation or @data-walkthrough-card][1]"
+  );
+  await owner
+    .getByRole("button", { name: /^Variables(?: · \d+)?$/, exact: true })
+    .click();
+  await body.waitFor();
 }
 export async function assertParallel(frame, host, widths = [1550, 760]) {
   const page = typeof frame.page === "function" ? frame.page() : frame;

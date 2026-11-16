@@ -13,7 +13,7 @@ import {
 } from "./api";
 import { CodeLines } from "./source-code";
 import { FunctionContextLabel } from "./function-context";
-import { MarkdownBody } from "./markdown-body";
+import { NoteEntry, NoteTabButtons } from "./note-presentation";
 import type { tokenizeSource } from "./source-syntax";
 import {
   attachedBlockNotes,
@@ -354,19 +354,10 @@ export function useComparisonAnnotations(
           <small>PURPOSE</small>
           <p>{authored.purpose}</p>
         </div>
-        <div className="review-note-tabs">
-          <button
-            aria-pressed={tab === "notes"}
-            onClick={() => setTab("notes")}
-          >
-            Notes
-          </button>
-          <button
-            aria-pressed={tab === "variables"}
-            onClick={() => setTab("variables")}
-          >
-            Variables
-          </button>
+        <div className="detail-heading">
+          <div>
+            <NoteTabButtons tab={tab} change={setTab} notes={notes} />
+          </div>
           <button
             disabled={!source.code}
             onClick={() => open(tab === "variables" ? "new-variable" : "new")}
@@ -482,7 +473,12 @@ export function useComparisonAnnotations(
             {authored.notApplicable[tab]}
           </p>
         )}
-        <div className="review-notes">
+        <div
+          className={
+            "review-notes note-entries" +
+            (tab === "variables" ? " variable-entries" : "")
+          }
+        >
           {notes
             .filter(
               (note) =>
@@ -491,34 +487,28 @@ export function useComparisonAnnotations(
             .map((note) => {
               const block = blocks.find((block) => block.id === note.id);
               return (
-                <article
-                  className={"note" + (block ? " block-note" : "")}
+                <NoteEntry
+                  note={note}
+                  block={block}
                   id={noteId(note.id)}
                   key={note.id}
-                  data-explanation-id={note.id}
                   style={
-                    block
+                    !block && note.variableName
                       ? {
-                          borderLeftColor: block.color,
-                          backgroundColor: block.tint,
+                          borderLeftColor: colors[note.id],
+                          borderLeftStyle: "solid",
+                          borderLeftWidth: 3,
                         }
-                      : note.variableName
-                        ? {
-                            borderLeftColor: colors[note.id],
-                            borderLeftStyle: "solid",
-                            borderLeftWidth: 3,
-                          }
-                        : undefined
+                      : undefined
+                  }
+                  warning={
+                    note.stale && (
+                      <span className="badge warning">
+                        From an earlier comparison · source changed
+                      </span>
+                    )
                   }
                 >
-                  {note.variableName && <strong>{note.variableName}</strong>}
-                  {note.stale && (
-                    <p className="badge warning">
-                      From an earlier comparison · source changed
-                    </p>
-                  )}
-                  <MarkdownBody body={note.body} />
-                  {block && <small>{blockLineLabel(block.ranges)}</small>}
                   <button
                     disabled={note.stale || !source.code}
                     onClick={() => open(note.id)}
@@ -541,7 +531,7 @@ export function useComparisonAnnotations(
                       if (current()) saved(view, annotations);
                     }}
                   />
-                </article>
+                </NoteEntry>
               );
             })}
         </div>

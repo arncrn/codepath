@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { gitProject } from "../tests/fixtures/git-project.mjs";
 import { authorFixture, side } from "../tests/fixtures/authored-comparison.mjs";
-import { readSavedStep } from "./unified-review-check.mjs";
+import { readReviewStep, selectedReviewFile } from "./unified-review-check.mjs";
 
 const cleanup = [];
 const f = await gitProject({ after: (fn) => cleanup.push(fn) });
@@ -56,8 +56,8 @@ try {
   await page.locator("#note-text").fill("Keep ordinary draft");
   await page.locator(`[data-comparison-path="${saved.id}"]`).click();
   const panel = page.locator("#current-changes");
-  await readSavedStep(page, "Choose the amount");
-  const after = panel.locator('[data-git-side="after"]');
+  await readReviewStep(page, "Choose the amount");
+  const after = selectedReviewFile(page).locator('[data-current-side="after"]');
   await after
     .getByRole("heading", { name: "Staged amount", exact: true })
     .waitFor();
@@ -83,8 +83,8 @@ try {
     scope.getByRole("button", { name, exact: true });
   await button(after, "Write note").click();
   await after.getByLabel("Note text").fill("Human comparison note");
-  await readSavedStep(page, "Choose the amount");
-  await readSavedStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
   await button(after, "Save note").click();
   const human = () =>
     after
@@ -109,16 +109,23 @@ try {
   await panel
     .getByText("No allowed-path differences.", { exact: true })
     .waitFor();
-  const historical = await readSavedStep(page, "Choose the amount");
+  const inline = await readReviewStep(page, "Choose the amount");
+  await inline.getByText("Corrected annotation", { exact: true }).waitFor();
+  assert.ok(
+    (
+      await inline
+        .getByLabel("Retained original-source draft")
+        .evaluateAll((es) => es.map((e) => e.value))
+    ).includes("Independent comparison draft")
+  );
   assert.equal(
-    await historical
-      .locator('[data-git-side="after"] code[data-source-line]')
-      .innerText(),
-    "const amount = 2;"
+    await inline.locator("pre").count(),
+    0,
+    "Explanations stay visible without substituting saved code"
   );
   assert.equal(await panel.locator(".current-columns").count(), 0);
   await button(choices, "Changes").click();
-  await readSavedStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
   await after
     .getByRole("heading", { name: "Staged amount", exact: true })
     .waitFor();
@@ -226,7 +233,7 @@ try {
     .waitFor();
   await readHeld.release();
   assert.equal(
-    await panel
+    await selectedReviewFile(page)
       .getByRole("heading", { name: "Amount evolution", exact: true })
       .count(),
     1,
@@ -244,14 +251,14 @@ try {
   await panel.locator('[data-inventory-ready="true"]').waitFor();
   await listHeld.release();
   assert.equal(await choices.getByLabel("Current base branch").count(), 0);
-  await readSavedStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
   assert.equal(
     await after.locator("code[data-source-line]").first().innerText(),
     "const amount = 2;"
   );
   // Opposite side changed: old Before text is not silently blessed.
-  const stale = await readSavedStep(page, "Expand the calculation");
-  const before = stale.locator('[data-git-side="before"]');
+  const stale = await readReviewStep(page, "Expand the calculation");
+  const before = stale.locator('[data-current-side="before"]');
   f.write("part.ts", "const amount = 99;\nunchanged\n");
   await button(before, "Write note").click();
   await before.getByLabel("Note text").fill("Keep rejected stale source draft");
@@ -275,7 +282,7 @@ try {
     await after.locator("code[data-source-line]").first().innerText(),
     "const amount = 3;"
   );
-  await readSavedStep(page, "Choose the amount");
+  await readReviewStep(page, "Choose the amount");
   await button(
     after.locator(".note").filter({ hasText: "Accepted old text" }),
     "Delete note"

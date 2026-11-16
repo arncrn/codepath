@@ -4,6 +4,10 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { chromium } from "playwright-core";
+import {
+  assertVariableContrast,
+  assertVariableContrastPalettes,
+} from "./variable-contrast-check.mjs";
 import { startProjectService } from "../dist/service.mjs";
 import {
   dispatchReadingContext,
@@ -234,6 +238,11 @@ try {
   );
   await codeValue.click();
   assert.equal(await variables.isVisible(), true);
+  await assertVariableContrast(page);
+  await assertVariableContrastPalettes(
+    page,
+    fs.readFileSync(path.resolve("vscode/vscode.css"), "utf8")
+  );
   assert.deepEqual(
     await variables
       .locator('[aria-current="true"]')
@@ -241,7 +250,7 @@ try {
     [outer.id, overlap.id].sort()
   );
   assert.equal(await entry(block.id).getAttribute("aria-current"), null);
-  await page.locator("#data-tab").click();
+  await page.locator("#flow-tab").click();
   await codeValue.focus();
   await codeValue.press("Space");
   assert.equal(await variables.isVisible(), true);

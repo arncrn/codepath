@@ -174,7 +174,7 @@ try {
     await service.close();
     const second = await fixture("two", port, false);
     await page.goto(second.url);
-    await assertPosition(page, "a", "a1", "data");
+    await assertPosition(page, "a", "a1", "notes");
     await choose(page);
     await page.close();
     page = await context.newPage();

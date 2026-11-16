@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { gitProject, allChanges } from "../tests/fixtures/git-project.mjs";
 import { side } from "../tests/fixtures/authored-comparison.mjs";
-import { chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 import { verifyAuthoredHunks } from "./authored-hunks-check.mjs";
 const cleanup = [];
 const f = await gitProject({ after: (close) => cleanup.push(close) });
@@ -58,24 +61,26 @@ try {
   });
   await page.goto(f.service.url + "?view=current-changes");
   await chooseReviewFile(page, "unstaged", "part.ts");
-  const panel = page.locator("#current-changes"),
-    focus = panel.getByRole("checkbox", {
+  const panel = selectedReviewFile(page),
+    focus = page.locator("#current-changes").getByRole("checkbox", {
       name: "Show only changed sections",
       exact: true,
     });
+  await page.locator(`[data-comparison-path="${saved.id}"]`).click();
+  await focus.uncheck();
   await panel.getByText("After purpose", { exact: true }).waitFor();
   assert.equal(await focus.isChecked(), false);
   assert.equal(
-    await panel.getByRole("button", { name: "Notes", exact: true }).count(),
+    await panel
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2,
     "Initial full-file view loads admitted Notes without first turning focus on"
   );
   await focus.check();
   const numbers = async (side) =>
     panel
-      .locator(
-        `.current-diff-host [data-current-side="${side}"] code[data-source-line],.current-diff-host .guide-display [data-git-side="${side}"] code[data-source-line]`
-      )
+      .locator(`[data-current-side="${side}"] code[data-source-line]`)
       .evaluateAll((nodes) =>
         nodes.map((node) => Number(node.dataset.sourceLine))
       );
@@ -107,7 +112,9 @@ try {
     22
   );
   assert.equal(
-    await panel.getByRole("button", { name: "Notes", exact: true }).count(),
+    await panel
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2,
     "Unchecking changes source extent, never removes Before/After Notes"
   );

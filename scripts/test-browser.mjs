@@ -49,15 +49,18 @@ try {
       .getByRole("button", { name: "Submit order →", exact: true })
       .click();
     await demo
-      .getByText("Run captured. Close the example to inspect it.", {
-        exact: true,
-      })
+      .getByText(
+        "Run captured. Close the example to return to the walkthrough.",
+        {
+          exact: true,
+        }
+      )
       .waitFor();
     await page.getByRole("button", { name: "Close", exact: true }).click();
-    await page
-      .locator("#data-badge")
-      .filter({ hasText: "Captured execution" })
-      .waitFor();
+    assert.equal(
+      await page.locator("#data-tab,#data-panel,#runs,#run-file").count(),
+      0
+    );
     await page.locator('[data-select="normalize"]').click();
     const runs = await service.call("list_runs", {
       walkthroughId: "checkout-" + backend,
@@ -69,14 +72,11 @@ try {
     assert.equal(output.email, "ada@example.com");
     assert.equal(output.total, quantity === 2 ? 2160 : 1200);
     assert.equal(output.discount, quantity === 2 ? 240 : 0);
-    const displayed = JSON.parse(
-      await page
-        .locator("#values .data-grid > div")
-        .nth(1)
-        .locator("pre")
-        .innerText()
+    assert.equal(
+      run.walkthroughId,
+      "checkout-" + backend,
+      "The example still retains its captured execution through the API"
     );
-    assert.equal(displayed.total, output.total);
   }
   // Create and add source using React forms, not direct DOM injection.
   const title = 'Review <img src=x onerror="window.titleExecuted=true">';
@@ -228,25 +228,21 @@ try {
   await page.waitForFunction(
     () => document.querySelectorAll(".code-card").length === 1
   );
-  await page.locator("#data-tab").click();
-  await page.locator("#run-file").setInputFiles({
-    name: "fixture.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(
-      JSON.stringify({
-        label: "Imported fixture",
-        mode: "example",
-        origin: "Browser test fixture, not observed execution.",
-        events: [{ stepId, input: { quantity: 1 }, output: { ok: true } }],
-      })
-    ),
+  const retained = await service.call("record_run", {
+    walkthroughId: walkId,
+    label: "Retained API fixture",
+    mode: "example",
+    origin: "Browser test fixture, not observed execution.",
+    events: [{ stepId, input: { quantity: 1 }, output: { ok: true } }],
   });
-  await page
-    .locator("#runs option")
-    .filter({ hasText: "Imported fixture" })
-    .waitFor({ state: "attached" });
-  assert.match(await page.locator("#data-badge").innerText(), /Illustrative/);
-  assert.match(await page.locator("#values").innerText(), /true/);
+  assert.deepEqual(
+    await service.call("get_run", { id: retained.id }),
+    retained
+  );
+  assert.equal(
+    await page.locator("#data-tab,#data-panel,#run-file,#import-run").count(),
+    0
+  );
   // Changing the viewport must not lose the selected path or create errors.
   await page.setViewportSize({ width: 540, height: 900 });
   assert.equal(await page.locator(".code-card").count(), 1);
@@ -265,7 +261,7 @@ try {
   console.log(
     "Browser React integration passed (" +
       backend +
-      "): real seven-checkpoint captures for quantities 1/2, forms, escaped source/text, range selection, full-file view, notes/drafts during polling, stale annotations, reorder/remove, keyboard navigation, import, narrow viewport and reload persistence."
+      "): real seven-checkpoint captures for quantities 1/2, forms, escaped source/text, range selection, full-file view, notes/drafts during polling, stale annotations, reorder/remove, keyboard navigation, preserved API runs without Data/import UI, narrow viewport and reload persistence."
   );
 } finally {
   await browser?.close();

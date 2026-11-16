@@ -40,7 +40,9 @@ exports.run=async()=>{
   await vscode.commands.executeCommand('codepath.open');
   fs.writeFileSync(path.join(testDir,'host-ready.json'),JSON.stringify({root,...selectedWalk}));
   let maximizedForAuthoring=false, markdownReopened=false;
-  for(let i=0;!fs.existsSync(path.join(testDir,'ui-done.json'))&&i<1200;i++){
+  // Owned QA host only: expanded single-source/draft regression needs another
+  // round trip through review. Keep per-action/product timeouts unchanged.
+  for(let i=0;!fs.existsSync(path.join(testDir,'ui-done.json'))&&i<1800;i++){
     if(!maximizedForAuthoring&&fs.existsSync(path.join(testDir,'authoring-maximize'))){
       await vscode.commands.executeCommand('workbench.action.toggleMaximizeEditorGroup');
       maximizedForAuthoring=true;

@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { chromium } from "playwright-core";
 import { gitProject } from "../tests/fixtures/git-project.mjs";
-import { chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 const cleanup = [];
 const f = await gitProject({ after: (close) => cleanup.push(close) });
 let browser;
@@ -46,7 +49,7 @@ try {
   assert.equal(await checkbox.count(), 1);
   assert.equal(await checkbox.isChecked(), false);
   const numbers = () =>
-    panel
+    selectedReviewFile(page)
       .locator('[data-current-side="after"] code[data-source-line]')
       .evaluateAll((nodes) => nodes.map((n) => Number(n.dataset.sourceLine)));
   assert.equal((await numbers()).length, 20);

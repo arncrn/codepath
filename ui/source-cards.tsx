@@ -49,6 +49,74 @@ export function useSourceCards() {
         });
     });
   }
+  function revealFlowSource(focus: FlowSourceFocus, admitted: () => boolean) {
+    const request = scrollRequest.current;
+    let cancelled = false;
+    const frame = requestAnimationFrame(() => {
+      if (cancelled || request !== scrollRequest.current || !admitted()) return;
+      const row = rail.current;
+      if (!row || row.closest("[hidden]")) return;
+      const card = row.querySelector<HTMLElement>(".code-card.active");
+      const pane = card?.querySelector<HTMLElement>(".code");
+      if (!card || card.dataset.step !== focus.node.stepId || !pane) return;
+      // scrollIntoView walks every ancestor. Move only the two owned containers.
+      function within(
+        container: HTMLElement,
+        target: { left: number; right: number; top: number; bottom: number },
+        horizontalOnly = false
+      ) {
+        const rect = container.getBoundingClientRect();
+        function delta(
+          start: number,
+          size: number,
+          first: number,
+          last: number
+        ) {
+          const gap = Math.min(12, size / 8),
+            available = size - 2 * gap;
+          if (last - first > available || first < start + gap)
+            return first - start - gap;
+          return last > start + size - gap ? last - start - size + gap : 0;
+        }
+        const dx = delta(
+          rect.left + container.clientLeft,
+          container.clientWidth,
+          target.left,
+          target.right
+        );
+        const dy = horizontalOnly
+          ? 0
+          : delta(
+              rect.top + container.clientTop,
+              container.clientHeight,
+              target.top,
+              target.bottom
+            );
+        if (dx || dy)
+          container.scrollTo({
+            left: container.scrollLeft + dx,
+            top: container.scrollTop + dy,
+            behavior: "instant",
+          });
+      }
+      within(row, card.getBoundingClientRect(), true);
+      const marks = [
+        ...pane.querySelectorAll<HTMLElement>("[data-flow-source]"),
+      ];
+      if (!marks.length) return;
+      const bounds = marks.map((mark) => mark.getBoundingClientRect());
+      within(pane, {
+        left: Math.min(...bounds.map((r) => r.left)),
+        right: Math.max(...bounds.map((r) => r.right)),
+        top: Math.min(...bounds.map((r) => r.top)),
+        bottom: Math.max(...bounds.map((r) => r.bottom)),
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }
   function toggleFull(id: string) {
     setExpandedStepIds((expanded) => {
       const updated = new Set(expanded);
@@ -82,8 +150,8 @@ export function useSourceCards() {
   return {
     rail,
     flowFocus,
-    scrollRequest,
     focusFlowSource,
+    revealFlowSource,
     clearFlowSource,
     expandedStepIds,
     menu,
@@ -140,26 +208,15 @@ export function SourceCards({
   useEffect(() => {
     if (focus && !validFocus) display.clearFlowSource();
     if (!focus || !validFocus) return;
-    const request = display.scrollRequest.current;
-    const frame = requestAnimationFrame(() => {
-      const state = latest.current;
-      if (
-        request !== display.scrollRequest.current ||
-        state.focus !== focus ||
-        !state.active ||
-        state.selectedStepId !== focus.node.stepId ||
-        !currentFlowSource(state.walkthrough, focus)
-      )
-        return;
-      display.rail.current
-        ?.querySelector<HTMLElement>(".code-card.active [data-flow-source]")
-        ?.scrollIntoView({
-          behavior: "instant",
-          block: "center",
-          inline: "center",
-        });
+    return display.revealFlowSource(focus, () => {
+      const current = latest.current;
+      return (
+        current.active &&
+        current.focus === focus &&
+        current.selectedStepId === focus.node.stepId &&
+        currentFlowSource(current.walkthrough, focus)
+      );
     });
-    return () => cancelAnimationFrame(frame);
   }, [focus, validFocus]);
   return (
     <>
@@ -296,15 +353,6 @@ export function SourceCards({
                   </button>
                 </div>
                 <div className="code">
-                  {validFocus && focus?.node.stepId === step.id && (
-                    <p className="flow-source-location" role="status">
-                      {focus.node.label} ·{" "}
-                      {focus.node.attachment.startLine ===
-                      focus.node.attachment.endLine
-                        ? `Line ${focus.node.attachment.startLine}`
-                        : `Lines ${focus.node.attachment.startLine}–${focus.node.attachment.endLine}`}
-                    </p>
-                  )}
                   <FunctionContextLabel step={step} />
                   <CodeLines
                     step={step}

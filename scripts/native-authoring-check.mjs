@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { once } from "node:events";
+import { assertVariableContrast } from "./variable-contrast-check.mjs";
 
 // Invoked inside the disposable native test, against the shipped agent and its
 // real extension-owned service. No external LLM behavior is simulated/claimed.
@@ -199,6 +200,7 @@ export async function verifyNativeAuthoring(
     .locator("#variables-panel")
     .getByText(variableBody, { exact: true })
     .waitFor();
+  await assertVariableContrast(frame);
   await frame.locator("#agent").click();
   const prompt = await frame.locator("#modal blockquote").innerText();
   assert.equal(
@@ -209,6 +211,6 @@ export async function verifyNativeAuthoring(
   assert.equal(await frame.locator("#error").isVisible(), false);
   await frame.locator(`#paths [data-path="${original}"]`).click();
   console.log(
-    "Packaged native authoring passed: shared MCP/UI policy, incomplete CLI exit 1, ready result, block colors and named Variable highlights."
+    "Packaged native authoring passed: shared MCP/UI policy, incomplete CLI exit 1, ready result, block colors and readable quiet named Variable highlights."
   );
 }

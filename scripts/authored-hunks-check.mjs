@@ -2,7 +2,10 @@
 import assert from "node:assert/strict";
 import { allChanges } from "../tests/fixtures/git-project.mjs";
 import { side } from "../tests/fixtures/authored-comparison.mjs";
-import { chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 
 export async function verifyAuthoredHunks(frame, f, label = "browser") {
   const file = "authored-all-hunks.ts";
@@ -42,8 +45,9 @@ export async function verifyAuthoredHunks(frame, f, label = "browser") {
     await frame
       .getByRole("button", { name: "Review changes", exact: true })
       .click();
-  const panel = frame.locator("#current-changes"),
-    focus = panel.getByRole("checkbox", {
+  const controls = frame.locator("#current-changes"),
+    panel = selectedReviewFile(frame),
+    focus = controls.getByRole("checkbox", {
       name: "Show only changed sections",
       exact: true,
     });
@@ -116,7 +120,9 @@ export async function verifyAuthoredHunks(frame, f, label = "browser") {
   );
   await focus.uncheck();
   assert.equal(
-    await panel.getByRole("button", { name: "Notes", exact: true }).count(),
+    await panel
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2,
     "Both Notes homes remain in full-file mode"
   );
@@ -162,10 +168,12 @@ export async function verifyAuthoredHunks(frame, f, label = "browser") {
   f.write(file, before.replace("amount = 1", "amount = 99"));
   f.git("add", "--", file);
   f.write(file, after);
-  await panel
+  await controls
     .getByRole("button", { name: "Refresh changes", exact: true })
     .click();
-  await panel.locator('[data-inventory-ready="true"]').waitFor();
+  await controls
+    .locator('.git-file-list[data-inventory-ready="true"]')
+    .waitFor();
   await panel
     .locator('[data-current-side="before"] code[data-source-line="1"]')
     .filter({ hasText: "99" })
@@ -183,34 +191,31 @@ export async function verifyAuthoredHunks(frame, f, label = "browser") {
     0,
     "Identical AFTER is insufficient: no notes may overlay a mismatching FULL pair"
   );
-  await panel
-    .getByRole("button", { name: "Read saved guide source", exact: true })
-    .click();
-  await panel
-    .getByRole("button", { name: "Back to current diff", exact: true })
+  await column
+    .getByText("Current diff exact block note", { exact: true })
     .waitFor();
-  assert.equal(
-    await panel
-      .locator(
-        '.saved-versions [data-git-side="before"] code[data-source-line="1"]'
-      )
-      .textContent(),
-    "const amount = 1;"
+  await column.getByText("Full file note draft", { exact: true }).waitFor();
+  assert.ok(
+    (await column.getByText(/Out of date/).count()) > 0,
+    "Mismatch preserves visible explanations, never stale overlays"
   );
   assert.equal(
     await panel.locator("pre").count(),
     2,
-    "Explicit old source replaces, never duplicates, the current diff"
+    "Only current Before/After source is displayed"
   );
   assert.equal(
-    await panel
+    await controls
+      .getByRole("button", { name: "Read saved guide source", exact: true })
+      .count(),
+    0
+  );
+  assert.equal(
+    await controls
       .getByRole("checkbox", { name: `Viewed unstaged ${file}`, exact: true })
       .isChecked(),
     false
   );
-  await panel
-    .getByRole("button", { name: "Back to current diff", exact: true })
-    .click();
   await panel
     .locator('[data-current-side="before"] code[data-source-line="1"]')
     .filter({ hasText: "99" })
@@ -221,6 +226,6 @@ export async function verifyAuthoredHunks(frame, f, label = "browser") {
     "Current/historical inspection never rebinds or re-reviews saved explanations"
   );
   console.log(
-    `PASS ${label} ALL authored-file hunks with separate range headings; exact editable current note home/range; BEFORE-only mismatch refuses both overlays; full-file Notes/edit/save with same editor/draft across extent toggles; explicit historical source in ONE display; saved IDs/source/Viewed unchanged.`
+    `PASS ${label} ALL authored-file hunks with separate range headings; exact editable current note home/range; BEFORE-only mismatch refuses both overlays; full-file Notes/edit/save with same editor/draft across extent toggles; outdated notes remain inline in ONE current display; saved IDs/source/Viewed unchanged.`
   );
 }

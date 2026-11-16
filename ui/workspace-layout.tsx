@@ -3,17 +3,24 @@ import type { ReactNode } from "react";
 import type { Overview, Step, Walkthrough } from "../types.mjs";
 import type { ReadingContext } from "./reading-context";
 import { config } from "./transport";
+import { NoteTabButtons } from "./note-presentation";
 
 export function WorkspaceHeader({
   overview,
   error,
   dismissError,
   refresh,
+  refreshBusy = false,
+  refreshMessage = "",
+  refreshFailed = false,
 }: {
   overview: Overview | null;
   error: string;
   dismissError: () => void;
   refresh: () => void;
+  refreshBusy?: boolean;
+  refreshMessage?: string;
+  refreshFailed?: boolean;
 }) {
   return (
     <>
@@ -25,12 +32,21 @@ export function WorkspaceHeader({
           <span className="prototype">Prototype 0.8.1</span>
           <button
             id="refresh"
+            disabled={refreshBusy}
+            aria-busy={refreshBusy}
             onClick={() => {
               refresh();
             }}
           >
-            ↻ Refresh
+            {refreshBusy ? "↻ Refreshing…" : "↻ Refresh"}
           </button>
+          <span
+            className="refresh-status"
+            role="status"
+            data-refresh-failed={refreshFailed}
+          >
+            {refreshMessage}
+          </span>
         </div>
       </header>
       <div
@@ -155,33 +171,12 @@ export function DetailPanels({
     <section id="detail" hidden={!hasWalkthrough}>
       <div className="detail-heading">
         <div>
-          <button
-            id="data-tab"
-            className={tab === "data" ? "active" : ""}
-            onClick={() => changeTab("data")}
-          >
-            Data at this step
-          </button>
-          <button
-            id="notes-tab"
-            className={tab === "notes" ? "active" : ""}
-            onClick={() => changeTab("notes")}
-          >
-            Notes ·{" "}
-            {currentStep?.notes.filter(
-              (note) => !note.archived && !note.variableName
-            ).length ?? 0}
-          </button>
-          <button
-            id="variables-tab"
-            className={tab === "variables" ? "active" : ""}
-            onClick={() => changeTab("variables")}
-          >
-            Variables ·{" "}
-            {currentStep?.notes.filter(
-              (note) => !note.archived && note.variableName
-            ).length ?? 0}
-          </button>
+          <NoteTabButtons
+            tab={tab}
+            change={changeTab}
+            notes={currentStep?.notes ?? []}
+            ids={{ notes: "notes-tab", variables: "variables-tab" }}
+          />
           <button
             id="flow-tab"
             className={tab === "flow" ? "active" : ""}

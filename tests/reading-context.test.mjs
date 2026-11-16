@@ -44,6 +44,29 @@ test("Reading context accepts only bounded position fields and survives absent/m
   );
   assert.notEqual(readingContextKey("/a"), readingContextKey("/b"));
 });
+test("Legacy Data reading positions restore Notes while retaining the exact walkthrough/step/focus", () => {
+  const legacy = { ...position, tab: "data" };
+  assert.deepEqual(parseReadingContext(legacy), position);
+  assert.equal(
+    legacy.tab,
+    "data",
+    "Reading an old preference does not mutate the stored input"
+  );
+});
+test("Native legacy Data preference normalizes to Notes without rewriting stored workspaceState on read", async () => {
+  const legacy = { ...position, tab: "data" };
+  const state = {
+    get: () => legacy,
+    update: async () => {
+      throw Error("Read must not write");
+    },
+  };
+  assert.deepEqual(
+    await dispatchReadingContext(state, "/a", "reading-context/get"),
+    position
+  );
+  assert.equal(legacy.tab, "data");
+});
 test("Host workspaceState bridge binds keys to session roots and rejects arbitrary payloads/routes", async () => {
   const values = new Map();
   const state = {

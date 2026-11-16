@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { allChanges } from "../tests/fixtures/git-project.mjs";
-import { chooseReviewFile, readSavedStep } from "./unified-review-check.mjs";
+import {
+  chooseReviewFile,
+  selectedReviewFile,
+  readReviewStep,
+} from "./unified-review-check.mjs";
 
 // Same public UI/tool seam in Chrome and the disposable native host. All source
 // and Git writes belong exclusively to the caller's owned fixture repository.
@@ -176,18 +180,17 @@ export async function verifyCoverage(frame, f, label) {
       el.style.zoom = "1";
     });
     await page.setViewportSize({ width: 1550, height: 1000 });
+    await chooseReviewFile(frame, "unstaged", c.file);
     await panel
-      .getByRole("button", {
-        name: `Open unstaged ${c.file}`,
-        exact: true,
-      })
-      .click();
-    await panel
-      .locator(".current-diff-host > h2")
+      .locator("[data-review-active=true] > .review-file-heading h2")
       .filter({ hasText: c.file })
       .waitFor();
-    const left = panel.locator('[data-current-side="before"]'),
-      right = panel.locator('[data-current-side="after"]');
+    const left = panel.locator(
+        '[data-review-active=true] [data-current-side="before"]'
+      ),
+      right = panel.locator(
+        '[data-review-active=true] [data-current-side="after"]'
+      );
     const count = (text) =>
       text === "" ? 0 : text.split("\n").length - Number(text.endsWith("\n"));
     assert.equal(
@@ -202,7 +205,12 @@ export async function verifyCoverage(frame, f, label) {
     );
     assert.equal(await panel.locator("[data-reference]").count(), 0);
     if (c.plain) {
-      assert.equal(await panel.locator(".diff-added,.diff-removed").count(), 0);
+      assert.equal(
+        await panel
+          .locator('[data-review-active="true"] :is(.diff-added,.diff-removed)')
+          .count(),
+        0
+      );
       await panel
         .getByText(/Plain source — diff alignment unavailable/)
         .waitFor();
@@ -221,14 +229,16 @@ export async function verifyCoverage(frame, f, label) {
           };
           return {
             columns: [
-              rect('[data-current-side="before"]'),
-              rect('[data-current-side="after"]'),
+              rect('[data-review-active=true] [data-current-side="before"]'),
+              rect('[data-review-active=true] [data-current-side="after"]'),
             ],
             pairs: pairs.map(([a, b]) => [
               rect(
-                `[data-current-side="before"] code[data-source-line="${a}"]`
+                `[data-review-active=true] [data-current-side="before"] code[data-source-line="${a}"]`
               ),
-              rect(`[data-current-side="after"] code[data-source-line="${b}"]`),
+              rect(
+                `[data-review-active=true] [data-current-side="after"] code[data-source-line="${b}"]`
+              ),
             ]),
           };
         }, c.pairs);
@@ -264,46 +274,42 @@ export async function verifyCoverage(frame, f, label) {
     el.style.zoom = "1";
   });
   await page.setViewportSize({ width: 1550, height: 1000 });
+  await chooseReviewFile(frame, "staged", "coverage-renamed.txt");
   await panel
-    .getByRole("button", {
-      name: "Open staged coverage-renamed.txt",
-      exact: true,
-    })
-    .click();
-  await panel
-    .locator(".current-diff-host > h2")
+    .locator("[data-review-active=true] > .review-file-heading h2")
     .filter({ hasText: "coverage-renamed-before.txt → coverage-renamed.txt" })
     .waitFor();
   assert.equal(
     await panel
-      .locator('[data-current-side="before"] code[data-source-line="1"]')
+      .locator(
+        '[data-review-active=true] [data-current-side="before"] code[data-source-line="1"]'
+      )
       .textContent(),
     "exact renamed source"
   );
   assert.equal(
     await panel
-      .locator('[data-current-side="after"] code[data-source-line="1"]')
+      .locator(
+        '[data-review-active=true] [data-current-side="after"] code[data-source-line="1"]'
+      )
       .textContent(),
     "exact renamed source"
   );
+  await chooseReviewFile(frame, "staged", "coverage-deleted.txt");
   await panel
-    .getByRole("button", {
-      name: "Open staged coverage-deleted.txt",
-      exact: true,
-    })
-    .click();
-  await panel
-    .locator(".current-diff-host > h2")
+    .locator("[data-review-active=true] > .review-file-heading h2")
     .filter({ hasText: "coverage-deleted.txt" })
     .waitFor();
   assert.equal(
     await panel
-      .locator('[data-current-side="after"] code[data-source-line]')
+      .locator(
+        '[data-review-active=true] [data-current-side="after"] code[data-source-line]'
+      )
       .count(),
     0
   );
   await panel
-    .locator('[data-current-side="after"]')
+    .locator('[data-review-active=true] [data-current-side="after"]')
     .getByText("No file on this side.", { exact: true })
     .waitFor();
   for (const [group, file, reason] of [
@@ -314,15 +320,13 @@ export async function verifyCoverage(frame, f, label) {
       ? [["staged", "coverage-conflict.txt", /Unmerged/]]
       : []),
   ]) {
+    await chooseReviewFile(frame, group, file);
     await panel
-      .getByRole("button", { name: `Open ${group} ${file}`, exact: true })
-      .click();
-    await panel
-      .locator(".current-diff-host > h2")
+      .locator("[data-review-active=true] > .review-file-heading h2")
       .filter({ hasText: file })
       .waitFor();
     await panel
-      .locator(".current-diff-host")
+      .locator('[data-review-active="true"]')
       .getByText(reason)
       .first()
       .waitFor();
@@ -332,12 +336,7 @@ export async function verifyCoverage(frame, f, label) {
     exact: true,
   });
   assert.equal(await huge.isDisabled(), true);
-  await panel
-    .getByRole("button", {
-      name: "Open untracked coverage-invalid.bin",
-      exact: true,
-    })
-    .click();
+  await chooseReviewFile(frame, "untracked", "coverage-invalid.bin");
   await panel
     .getByText("Invalid UTF-8: text diff unavailable.", { exact: true })
     .first()
@@ -354,14 +353,9 @@ export async function verifyCoverage(frame, f, label) {
         'input[aria-label="Viewed untracked coverage-invalid.bin"]'
       )?.checked
   );
+  await chooseReviewFile(frame, "unstaged", "coverage-replace.txt");
   await panel
-    .getByRole("button", {
-      name: "Open unstaged coverage-replace.txt",
-      exact: true,
-    })
-    .click();
-  await panel
-    .locator(".current-diff-host > h2")
+    .locator("[data-review-active=true] > .review-file-heading h2")
     .filter({ hasText: "coverage-replace.txt" })
     .waitFor();
   const output = path.resolve(
@@ -404,19 +398,16 @@ export async function verifyCoverage(frame, f, label) {
       .getByRole("alert")
       .filter({ hasText: "Owned injected continuation failure" })
       .waitFor();
+    await chooseReviewFile(frame, "unstaged", "coverage-bof.txt");
     await panel
-      .getByRole("button", {
-        name: "Open unstaged coverage-bof.txt",
-        exact: true,
-      })
-      .click();
-    await panel
-      .locator(".current-diff-host > h2")
+      .locator("[data-review-active=true] > .review-file-heading h2")
       .filter({ hasText: "coverage-bof.txt" })
       .waitFor({ timeout: 5000 });
     assert.equal(
       await panel
-        .locator('[data-current-side="after"] code[data-source-line="1"]')
+        .locator(
+          '[data-review-active=true] [data-current-side="after"] code[data-source-line="1"]'
+        )
         .textContent(),
       "insert"
     );
@@ -435,19 +426,16 @@ export async function verifyCoverage(frame, f, label) {
     .getByRole("button", { name: "Refresh changes", exact: true })
     .click();
   await panel.locator('[data-inventory-ready="true"]').waitFor();
+  await chooseReviewFile(frame, "untracked", "coverage-ordinary-110.txt");
   await panel
-    .getByRole("button", {
-      name: "Open untracked coverage-ordinary-110.txt",
-      exact: true,
-    })
-    .click();
-  await panel
-    .locator(".current-diff-host > h2")
+    .locator("[data-review-active=true] > .review-file-heading h2")
     .filter({ hasText: "coverage-ordinary-110.txt" })
     .waitFor();
   assert.equal(
     await panel
-      .locator('[data-current-side="after"] code[data-source-line="1"]')
+      .locator(
+        '[data-review-active=true] [data-current-side="after"] code[data-source-line="1"]'
+      )
       .textContent(),
     "diff only, no authoring needed"
   );
@@ -492,17 +480,23 @@ export async function verifyCoverage(frame, f, label) {
   await chooseReviewFile(frame, "unstaged", "coverage-blank-excerpt.ts");
   await frame.locator(`[data-comparison-path="${blankGuide.id}"]`).click();
   await authored
-    .locator('[data-current-side="after"] code[data-source-line="2"]')
+    .locator(
+      '[data-review-active=true] [data-current-side="after"] code[data-source-line="2"]'
+    )
     .waitFor();
   assert.equal(
     await authored
-      .locator('[data-current-side="before"] code[data-source-line="2"]')
+      .locator(
+        '[data-review-active=true] [data-current-side="before"] code[data-source-line="2"]'
+      )
       .textContent(),
     ""
   );
   assert.equal(
     await authored
-      .locator('[data-current-side="after"] code[data-source-line="2"]')
+      .locator(
+        '[data-review-active=true] [data-current-side="after"] code[data-source-line="2"]'
+      )
       .textContent(),
     "  return 2;"
   );
@@ -516,7 +510,7 @@ export async function verifyCoverage(frame, f, label) {
         const y = (side) =>
           element
             .querySelector(
-              `[data-current-side="${side}"] code[data-source-line="2"]`
+              `[data-review-active=true] [data-current-side="${side}"] code[data-source-line="2"]`
             )
             .getBoundingClientRect().y;
         return { before: y("before"), after: y("after") };
@@ -531,12 +525,12 @@ export async function verifyCoverage(frame, f, label) {
   });
   await page.setViewportSize({ width: 1550, height: 1000 });
   await frame.locator(`[data-comparison-path="${blankGuide.id}"]`).click();
-  const savedBlank = await readSavedStep(frame, "Selected blank replacement");
+  const inlineBlank = await readReviewStep(frame, "Selected blank replacement");
   assert.equal(
-    await savedBlank
-      .getByText("Blank source excerpt.", { exact: true })
+    await frame
+      .getByRole("button", { name: "Read saved guide source", exact: true })
       .count(),
-    1
+    0
   );
   for (const width of [1550, 760])
     for (const zoom of [1, 1.25, 2]) {
@@ -544,29 +538,23 @@ export async function verifyCoverage(frame, f, label) {
       await frame.locator("body").evaluate((element, value) => {
         element.style.zoom = String(value);
       }, zoom);
-      const geometry = await savedBlank.evaluate((element) => {
+      const geometry = await inlineBlank.evaluate((element) => {
         const row = (side) =>
           element
             .querySelector(
-              `[data-git-side="${side}"] code[data-source-line="2"]`
+              `[data-current-side="${side}"] code[data-source-line="2"]`
             )
             .getBoundingClientRect();
-        const blankMessage = [...element.querySelectorAll("p")]
-          .find((p) => p.textContent === "Blank source excerpt.")
-          .getBoundingClientRect();
-        return {
-          before: row("before").y,
-          after: row("after").y,
-          message: blankMessage.y,
-        };
+        return { before: row("before").y, after: row("after").y };
       });
       assert.ok(
         Math.abs(geometry.before - geometry.after) < 2,
         `${label} explicit saved blank excerpt alignment ${width}/${zoom}: ${JSON.stringify(geometry)}`
       );
-      assert.ok(
-        geometry.message > geometry.before,
-        "Blank-excerpt explanation stays AFTER its actual selected source row"
+      assert.equal(
+        await inlineBlank.locator("pre").count(),
+        2,
+        "No duplicate saved source for a blank explanation range"
       );
     }
   await frame.locator("body").evaluate((element) => {
@@ -575,7 +563,7 @@ export async function verifyCoverage(frame, f, label) {
   await page.setViewportSize({ width: 1550, height: 1000 });
   await frame.locator(`[data-comparison-path="${blankGuide.id}"]`).click();
   console.log(
-    `PASS ${label} current AND explicit saved blank authored excerpt: genuine selected-row alignment at 1550/760 ×100/125/200%, blank message after code.`
+    `PASS ${label} inline blank-range explanations retain genuine full-source row alignment at 1550/760 ×100/125/200%, no alternate source mode.`
   );
   await frame
     .getByRole("button", { name: "Back to walkthrough", exact: true })
@@ -636,9 +624,7 @@ export async function verifyGuideToggle(frame, f, label) {
     .getByRole("button", { name: "Refresh changes", exact: true })
     .click();
   await current.locator('[data-inventory-ready="true"]').waitFor();
-  await current
-    .getByRole("button", { name: "Open untracked " + fileName, exact: true })
-    .click();
+  await chooseReviewFile(frame, "untracked", fileName);
   await current.getByRole("heading", { name: fileName, exact: true }).waitFor();
   const viewed = current.getByRole("checkbox", {
     name: "Viewed untracked " + fileName,
@@ -671,11 +657,13 @@ export async function verifyGuideToggle(frame, f, label) {
   );
   assert.equal(await authored.isVisible(), true);
   assert.equal(
-    await current.getByRole("button", { name: "Notes", exact: true }).count(),
+    await selectedReviewFile(frame)
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2,
     "Full mode retains admitted Notes"
   );
-  assert.equal(await current.locator("pre").count(), 2);
+  assert.equal(await selectedReviewFile(frame).locator("pre").count(), 2);
   assert.equal(
     (await guide.getAttribute("class"))?.includes("selected"),
     false
@@ -702,7 +690,7 @@ export async function verifyGuideToggle(frame, f, label) {
     id: other.id,
   });
   const otherGuide = frame.locator(`[data-comparison-path="${other.id}"]`);
-  const after = current.locator('[data-git-side="after"]');
+  const after = selectedReviewFile(frame).locator('[data-git-side="after"]');
   await guide.click();
   await authored
     .getByRole("heading", { name: saved.title, exact: true })
@@ -711,21 +699,20 @@ export async function verifyGuideToggle(frame, f, label) {
   await after
     .getByLabel("Note text", { exact: true })
     .fill("Unsaved first-guide draft");
+  await chooseReviewFile(frame, "untracked", plainFile);
   await current
-    .getByRole("button", { name: "Open untracked " + plainFile, exact: true })
-    .click();
-  await current
-    .locator(".current-diff-host > h2")
+    .locator("[data-review-active=true] > .review-file-heading h2")
     .filter({ hasText: plainFile })
     .waitFor();
   assert.ok(
     (await guide.getAttribute("class")).includes("selected"),
     "File navigation keeps guide enabled in native/browser"
   );
-  assert.equal(await current.locator(".guide-display").count(), 0);
-  await current
-    .getByRole("button", { name: "Open untracked " + fileName, exact: true })
-    .click();
+  assert.equal(
+    await selectedReviewFile(frame).locator(".guide-display").count(),
+    0
+  );
+  await chooseReviewFile(frame, "untracked", fileName);
   await after
     .getByRole("heading", { name: "Source after", exact: true })
     .waitFor();
@@ -768,7 +755,9 @@ export async function verifyGuideToggle(frame, f, label) {
     .getByRole("heading", { name: fileName, exact: true })
     .waitFor({ timeout: 5000 });
   assert.equal(
-    await current.getByRole("button", { name: "Notes", exact: true }).count(),
+    await current
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2
   );
   await frame.waitForFunction(
@@ -790,7 +779,9 @@ export async function verifyGuideToggle(frame, f, label) {
   await otherGuide.click();
   await current.getByRole("heading", { name: fileName, exact: true }).waitFor();
   assert.equal(
-    await current.getByRole("button", { name: "Notes", exact: true }).count(),
+    await current
+      .getByRole("button", { name: /^Notes(?: · \d+)?$/, exact: true })
+      .count(),
     2
   );
   assert.deepEqual(

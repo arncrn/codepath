@@ -10,6 +10,7 @@ import {
   webviewHtml,
 } from "./bridge.mjs";
 import { followReference } from "./definition.mjs";
+import { createFlowWindow } from "./flow-window.mjs";
 
 import type {
   ProjectService,
@@ -21,6 +22,7 @@ interface Session {
   service: ProjectService;
   folder: vscode.WorkspaceFolder;
   panel: vscode.WebviewPanel | null;
+  flow: ReturnType<typeof createFlowWindow> | null;
 }
 const sessions = new Map<string, Promise<Session>>();
 let output: vscode.OutputChannel;
@@ -78,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
               " · " +
               root
           );
-          return { service, folder, panel: null };
+          return { service, folder, panel: null, flow: null };
         })
         .catch((e) => {
           sessions.delete(root);
@@ -216,8 +218,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
     session.panel = panel;
     panel.onDidDispose(() => {
-      session.panel = null;
+      session.flow?.disconnect(panel);
+      if (session.panel === panel) session.panel = null;
     });
+    session.flow ??= createFlowWindow(
+      (flowPanel) => panelHtml(flowPanel, session, true),
+      [vscode.Uri.file(path.join(context.extensionPath, "dist"))]
+    );
     panel.webview.onDidReceiveMessage(async (message) => {
       if (
         message?.type !== "codepath.request" ||
@@ -227,21 +234,27 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       try {
         const result =
-          message.route === "reading-context/get" ||
-          message.route === "reading-context/set"
-            ? await dispatchReadingContext(
-                context.workspaceState,
-                session.service.root,
-                message.route,
-                message.body
-              )
-            : message.route === "follow-reference"
-              ? await followSymbol(session, message.body)
-              : await dispatchWebviewRequest(
-                  session.service,
-                  message.route,
-                  message.body
-                );
+          message.route === "flow/open"
+            ? await session.flow!.open(panel)
+            : message.route === "flow/publish"
+              ? await session.flow!.publish(panel, message.body)
+              : message.route === "flow/close"
+                ? await session.flow!.close(panel, message.body)
+                : message.route === "reading-context/get" ||
+                    message.route === "reading-context/set"
+                  ? await dispatchReadingContext(
+                      context.workspaceState,
+                      session.service.root,
+                      message.route,
+                      message.body
+                    )
+                  : message.route === "follow-reference"
+                    ? await followSymbol(session, message.body)
+                    : await dispatchWebviewRequest(
+                        session.service,
+                        message.route,
+                        message.body
+                      );
         if (message.route === "open-source") {
           // Resolve through the indexed walkthrough, never an arbitrary webview filename.
           const uri = vscode.Uri.joinPath(
@@ -279,7 +292,14 @@ export function activate(context: vscode.ExtensionContext) {
         });
       }
     });
-    panel.webview.html = webviewHtml(
+    panel.webview.html = panelHtml(panel, session);
+  }
+  function panelHtml(
+    panel: vscode.WebviewPanel,
+    session: Session,
+    flow = false
+  ) {
+    return webviewHtml(
       fs.readFileSync(path.join(context.extensionPath, "dist/ui.html"), "utf8"),
       {
         cspSource: panel.webview.cspSource,
@@ -302,6 +322,7 @@ export function activate(context: vscode.ExtensionContext) {
           root: session.service.root,
           toolRoot: path.join(context.extensionPath, "dist"),
           backend: "node",
+          ...(flow ? { view: "flow" as const } : {}),
         },
       }
     );
@@ -390,6 +411,7 @@ export async function deactivate() {
   await Promise.allSettled(
     [...sessions.values()].map(async (pending) => {
       const session = await pending;
+      session.flow?.dispose();
       session.panel?.dispose();
       await session.service.close();
     })

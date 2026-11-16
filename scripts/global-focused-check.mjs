@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { allChanges } from "../tests/fixtures/git-project.mjs";
-import { chooseReviewFile } from "./unified-review-check.mjs";
+import {
+  chooseReviewFile,
+  selectedReviewFile,
+} from "./unified-review-check.mjs";
 
 // Public file/toggle UI plus read-only service tools, shared with disposable native.
 export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
@@ -78,15 +81,18 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
   const active = frame.locator("[data-comparison-path].selected");
   if (await active.count()) await active.click();
   await chooseReviewFile(frame, "unstaged", file);
-  const panel = frame.locator("#current-changes"),
+  const controls = frame.locator("#current-changes"),
+    panel = selectedReviewFile(frame),
     guide = frame.locator(`[data-comparison-path="${guideId}"]`);
   // A native coverage fixture spans multiple inventory pages. Compare stable
   // inventory/progress only after enumeration and the exact-pair projection load.
-  await panel.locator('[data-inventory-ready="true"]').waitFor();
-  await panel
+  await controls
+    .locator('.git-file-list[data-inventory-ready="true"]')
+    .waitFor();
+  await controls
     .locator('input[aria-label="Viewed unstaged package.json"]:enabled')
     .waitFor();
-  const focusCheckbox = panel.getByRole("checkbox", {
+  const focusCheckbox = controls.getByRole("checkbox", {
     name: "Show only changed sections",
     exact: true,
   });
@@ -96,11 +102,11 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
     "Focus must be one real, clearly named checkbox"
   );
   assert.doesNotMatch(
-    await panel.innerText(),
+    await controls.innerText(),
     /\d+ files · \d+ pairs|files fully Viewed|pairs Viewed|paired steps · comparison/
   );
   assert.equal(
-    await panel
+    await controls
       .locator(`.git-file-list [data-comparison-path="${guideId}"]`)
       .count(),
     1,
@@ -127,7 +133,7 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
   }
   await assertPlacement();
   async function assertQuietHeader() {
-    const text = await panel.locator(".comparison-heading").innerText();
+    const text = await controls.locator(".comparison-heading").innerText();
     for (const phrase of [
       "Manual Viewed progress is not approval or correctness.",
       "Choose an optional guide from Walkthroughs.",
@@ -153,10 +159,10 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
         nodes.map((node) => Number(node.dataset.sourceLine))
       );
   assert.equal((await numbers("after")).length, 82);
-  const names = await panel
+  const names = await controls
       .locator(".git-file-list .changed-file > button")
       .allTextContents(),
-    checks = await panel
+    checks = await controls
       .locator('.git-file-list .changed-file input[type="checkbox"]')
       .evaluateAll((nodes) =>
         nodes.map((node) => ({
@@ -166,7 +172,7 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
       );
   await guide.click();
   await panel
-    .locator(".current-diff-host > h2")
+    .locator(".review-file-heading h2")
     .filter({ hasText: file })
     .waitFor();
   assert.ok((await guide.getAttribute("class")).includes("selected"));
@@ -256,13 +262,13 @@ export async function verifyGlobalFocus(frame, f, guideId, label = "browser") {
   );
   await panel.screenshot({ path: path.join(output, `${label}-full.png`) });
   assert.deepEqual(
-    await panel
+    await controls
       .locator(".git-file-list .changed-file > button")
       .allTextContents(),
     names
   );
   assert.deepEqual(
-    await panel
+    await controls
       .locator('.git-file-list .changed-file input[type="checkbox"]')
       .evaluateAll((nodes) =>
         nodes.map((node) => ({

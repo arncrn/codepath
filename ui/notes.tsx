@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import type { SubmitEvent } from "react";
 import type { Note, ReferenceContext, Step } from "../types.mjs";
 import type { useAnnotationEditor } from "./annotation-editor";
-import { attachedBlockNotes, blockLineLabel } from "./block-notes";
+import { attachedBlockNotes } from "./block-notes";
 import { addNote, deleteNote } from "./api";
-import { MarkdownBody } from "./markdown-body";
+import { NoteEntry } from "./note-presentation";
 import { DeleteNoteAction } from "./delete-note";
 import type { ReadingContext } from "./reading-context";
 
@@ -82,49 +82,32 @@ export function NotesPanel({
   function noteEntry(note: Note) {
     const block = blocks.find((block) => block.id === note.id);
     return (
-      <article
-        className={"note" + (block ? " block-note" : "")}
-        style={
-          block
-            ? { borderLeftColor: block.color, backgroundColor: block.tint }
-            : undefined
-        }
+      <NoteEntry
+        note={note}
+        block={block}
         key={note.id}
-        data-explanation-id={note.id}
-        aria-current={revealedIds.includes(note.id) ? "true" : undefined}
+        revealed={revealedIds.includes(note.id)}
+        warning={
+          (note.stale || currentStep?.error) && (
+            <span className="badge warning">
+              {currentStep?.error
+                ? "Source unavailable · review"
+                : note.hash !== currentStep?.code?.hash
+                  ? "Source changed · review"
+                  : "Note needs review"}
+            </span>
+          )
+        }
+        sourceError={
+          note.attachments?.some(
+            (range) => range.fileHash !== currentStep?.code?.fileHash
+          ) && (
+            <p className="source-error">
+              Attachments need source review. Select their ranges again.
+            </p>
+          )
+        }
       >
-        {block && (
-          <small className="block-note-location">
-            {blockLineLabel(block.ranges)}
-          </small>
-        )}
-        {note.variableName && (
-          <h3>
-            <code>{note.variableName}</code>
-            {note.attachments?.[0] && (
-              <small className="variable-location">
-                Line {note.attachments[0].startLine}
-              </small>
-            )}
-          </h3>
-        )}
-        {(note.stale || currentStep?.error) && (
-          <span className="badge warning">
-            {currentStep?.error
-              ? "Source unavailable · review"
-              : note.hash !== currentStep?.code?.hash
-                ? "Source changed · review"
-                : "Note needs review"}
-          </span>
-        )}
-        <MarkdownBody body={note.body} />
-        {note.attachments?.some(
-          (range) => range.fileHash !== currentStep?.code?.fileHash
-        ) && (
-          <p className="source-error">
-            Attachments need source review. Select their ranges again.
-          </p>
-        )}
         <button
           disabled={!currentStep?.code}
           onClick={() => review.open(note.id)}
@@ -144,7 +127,7 @@ export function NotesPanel({
             }}
           />
         )}
-      </article>
+      </NoteEntry>
     );
   }
   function entries(variable: boolean) {
@@ -153,7 +136,10 @@ export function NotesPanel({
         (note) => !note.archived && !!note.variableName === variable
       ) ?? [];
     return (
-      <div id={variable ? "variables" : "notes"}>
+      <div
+        id={variable ? "variables" : "notes"}
+        className={variable ? "note-entries variable-entries" : "note-entries"}
+      >
         {notes.length ? (
           notes.map(noteEntry)
         ) : (
