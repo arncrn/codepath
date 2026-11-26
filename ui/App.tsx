@@ -13,6 +13,7 @@ import { useFlowWindow } from "./flow-window";
 import type { ReviewFlowRequest } from "./review-flow";
 import type { ReviewFlowDisplay } from "./review-flow-presentation";
 import { SourceCards, useSourceCards } from "./source-cards";
+import { WalkthroughOverview, WalkthroughPages } from "./walkthrough-overview";
 import { SourceMenu } from "./source-menu";
 import { createWalkthroughCommands } from "./walkthrough-commands";
 import { useReadingSession } from "./reading-session";
@@ -74,7 +75,8 @@ export function App() {
     useState<ReviewFlowDisplay | null>(null);
   const flowWindow = useFlowWindow(
     reviewOpen ? (reviewFlowDisplay?.walkthrough ?? null) : reader.walkthrough,
-    !dialogs.modal && (!reviewOpen || !!reviewFlowDisplay?.walkthrough),
+    !dialogs.modal &&
+      (reviewOpen ? !!reviewFlowDisplay?.walkthrough : reader.page === "cards"),
     (focus) =>
       reviewOpen
         ? setReviewFlowRequest({
@@ -258,90 +260,113 @@ export function App() {
             openDemo={() => dialogs.open({ kind: "demo" })}
             addStep={() => chooseSource()}
             deletePath={() => void commands.openDelete()}
+            pages={
+              reader.walkthrough && (
+                <WalkthroughPages
+                  page={reader.page}
+                  change={reader.changePage}
+                />
+              )
+            }
+            showSteps={reader.page === "cards"}
             fail={fail}
           />
-          <SourceCards
-            active={!reviewOpen}
+          <WalkthroughOverview
             walkthrough={reader.walkthrough}
-            selectedStepId={reader.selectedStepId}
-            display={sourceDisplay}
+            hidden={reader.page !== "overview"}
             selectStep={reader.selectStep}
-            showNotes={() => reader.changeTab("notes")}
-            selectRange={annotations.selectRange}
-            selectedRange={annotations.selectedRange}
-            createBlockNote={(stepId, range) => {
-              const walkthrough = reader.walkthrough;
-              const step = walkthrough?.steps.find(
-                (step) => step.id === stepId
-              );
-              if (
-                walkthrough &&
-                step &&
-                noteEditor.createBlock(
-                  {
-                    step,
-                    walkthroughId: walkthrough.id,
-                    revision: walkthrough.revision,
-                  },
-                  range
-                )
-              ) {
-                if (reader.selectedStepId !== stepId)
-                  reader.selectStep(stepId, false);
-                reader.changeTab("notes");
-                annotations.clearRange(stepId);
-              }
-            }}
-            revealExplanations={annotations.reveal}
-            repairSource={(stepId) => {
-              setError("");
-              if (reader.walkthrough)
-                dialogs.open({
-                  kind: "repair",
-                  target: reader.walkthrough,
-                  stepId,
-                });
-            }}
-            removeStep={commands.removeStep}
-            moveStep={commands.moveStep}
-            start={() => chooseSource()}
-            connectAgent={() => dialogs.open({ kind: "agent" })}
-            fail={fail}
+            readCards={() => reader.changePage("cards")}
+            refresh={() => reader.refresh(true)}
           />
-          <DetailPanels
-            currentStep={reader.currentStep}
-            position={reader.position}
-            stepCount={reader.walkthrough?.steps.length ?? 0}
-            hasWalkthrough={!!reader.walkthrough}
-            tab={reader.tab}
-            changeTab={reader.changeTab}
-            navigate={reader.move}
-          >
-            <WalkthroughFlow
+          <div id="walkthrough-cards" hidden={reader.page !== "cards"}>
+            <SourceCards
+              active={!reviewOpen && reader.page === "cards"}
               walkthrough={reader.walkthrough}
-              hidden={reviewOpen || !!dialogs.modal || reader.tab !== "flow"}
-              selectCard={reader.selectFlowCard}
-              popOut={flowWindow.open}
-              popOutBusy={flowWindow.busy}
+              selectedStepId={reader.selectedStepId}
+              display={sourceDisplay}
+              selectStep={reader.selectStep}
+              showNotes={() => reader.changeTab("notes")}
+              selectRange={annotations.selectRange}
+              selectedRange={annotations.selectedRange}
+              createBlockNote={(stepId, range) => {
+                const walkthrough = reader.walkthrough;
+                const step = walkthrough?.steps.find(
+                  (step) => step.id === stepId
+                );
+                if (
+                  walkthrough &&
+                  step &&
+                  noteEditor.createBlock(
+                    {
+                      step,
+                      walkthroughId: walkthrough.id,
+                      revision: walkthrough.revision,
+                    },
+                    range
+                  )
+                ) {
+                  if (reader.selectedStepId !== stepId)
+                    reader.selectStep(stepId, false);
+                  reader.changeTab("notes");
+                  annotations.clearRange(stepId);
+                }
+              }}
+              revealExplanations={annotations.reveal}
+              repairSource={(stepId) => {
+                setError("");
+                if (reader.walkthrough)
+                  dialogs.open({
+                    kind: "repair",
+                    target: reader.walkthrough,
+                    stepId,
+                  });
+              }}
+              removeStep={commands.removeStep}
+              moveStep={commands.moveStep}
+              start={() => chooseSource()}
+              connectAgent={() => dialogs.open({ kind: "agent" })}
+              fail={fail}
             />
-            <NotesPanel
+            <DetailPanels
               currentStep={reader.currentStep}
+              position={reader.position}
+              stepCount={reader.walkthrough?.steps.length ?? 0}
+              hasWalkthrough={!!reader.walkthrough}
               tab={reader.tab}
-              draft={draft}
-              revision={reader.walkthrough?.revision}
-              review={noteEditor}
-              revealedIds={annotations.revealedIds}
-              target={
-                reader.walkthrough && reader.selectedStepId
-                  ? {
-                      walkthroughId: reader.walkthrough.id,
-                      stepId: reader.selectedStepId,
-                    }
-                  : null
-              }
-              refresh={reader.refresh}
-            />
-          </DetailPanels>
+              changeTab={reader.changeTab}
+              navigate={reader.move}
+            >
+              <WalkthroughFlow
+                walkthrough={reader.walkthrough}
+                hidden={
+                  reviewOpen ||
+                  reader.page !== "cards" ||
+                  !!dialogs.modal ||
+                  reader.tab !== "flow"
+                }
+                selectCard={reader.selectFlowCard}
+                popOut={flowWindow.open}
+                popOutBusy={flowWindow.busy}
+              />
+              <NotesPanel
+                currentStep={reader.currentStep}
+                tab={reader.tab}
+                draft={draft}
+                revision={reader.walkthrough?.revision}
+                review={noteEditor}
+                revealedIds={annotations.revealedIds}
+                target={
+                  reader.walkthrough && reader.selectedStepId
+                    ? {
+                        walkthroughId: reader.walkthrough.id,
+                        stepId: reader.selectedStepId,
+                      }
+                    : null
+                }
+                refresh={reader.refresh}
+              />
+            </DetailPanels>
+          </div>
         </div>
         <footer className="workspace-footer">
           <span>LOCAL WORKSPACE</span>

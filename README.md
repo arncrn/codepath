@@ -51,7 +51,7 @@ Use **Repair source reference** to replace missing or obsolete source. Confirmat
 
 Cards use local grammar coloring for JS, TS, JSX/TSX and Go. Source remains read-only. Reverse-reference lists and repeated-source occurrence controls are not part of the reading interface.
 
-The top of each card's **code pane** shows its selected source's function name, separate from the authored title/purpose and selectable numbered source. JS/TS/JSX/TSX use parsed lexical scopes (including anonymous functions, bindings, methods and nested callbacks). The innermost function containing the selected nonwhitespace range owns it: partial ranges spanning nested callbacks name their common outer function; ranges wholly inside a nested function name that nested context. Whole-function selections name themselves. Ranges crossing functions without a common owner say **Multiple functions**, top-level/non-function code says **No enclosing function**, and unsupported/invalid or unavailable source remains explicit. This is lexical context, not a runtime call stack. Go supports simple balanced named functions/receiver methods; files containing function literals/types, generics or complex signatures conservatively show **Unknown function**. Names follow current saved source even when explanations are stale; the source-change warning and explicit repair/review remain independent. Reading context never reviews explanations, changes source references or saves reader data. Comparison cards derive the same lexical context from each immutable raw Git side and that card's selected range, not the live file or a whole-file context. Shared file/side scopes are parsed once per projection/budget pass. Context is read-only metadata, excluded from saved snapshots and creation-only source seals; empty selections and unsupported source remain explicit.
+The top of each card's **code pane** shows its selected source's function name, separate from the authored title/purpose and selectable numbered source. JS/TS/JSX/TSX use parsed lexical scopes (including anonymous functions, bindings, methods and nested callbacks). The innermost function containing the selected nonwhitespace range owns it: partial ranges spanning nested callbacks name their common outer function; ranges wholly inside a nested function name that nested context. Whole-function selections name themselves. Ranges crossing functions without a common owner say **Multiple functions**, top-level/non-function code says **No enclosing function**, and unsupported/invalid or unavailable source remains explicit. This is lexical context, not a runtime call stack. Go uses balanced lexical signatures for exported/unexported functions, pointer/value and generic receiver methods, nested anonymous callbacks, function types, generic constraints and complex return types. Method names include their receiver type (for example, `Server.Handle`); callbacks include their lexical outer function (for example, `Server.Handle › anonymous`). A callback or complex signature does not make unrelated cards unknown. Malformed/unrecognized scopes remain **Unknown function**. This read-only scope extraction needs no installed Go toolchain and does not change the separate approximate Go navigation index. Names follow current saved source even when explanations are stale; the source-change warning and explicit repair/review remain independent. Reading context never reviews explanations, changes source references or saves reader data. Comparison cards derive the same lexical context from each immutable raw Git side and that card's selected range, not the live file or a whole-file context. Shared file/side scopes are parsed once per projection/budget pass. Context is read-only metadata, excluded from saved snapshots and creation-only source seals; empty selections and unsupported source remain explicit.
 
 Cards no longer offer the **Callback role…** control. Existing role metadata is retained. A different visual structure for function calls and recursion is a separate design discussion.
 
@@ -179,6 +179,26 @@ There is no repository-wide 200-file or 5,000-entry cutoff. Discovery advances i
 
 This removes a coverage restriction, not every scaling bottleneck: cards still carry full-file source, walkthrough metadata is still saved as one JSON record, and the target real-world monorepo on another machine has not been benchmarked. Walkthrough archiving and automatic main-integration/PR generation are separate, unimplemented features.
 
+## Walkthrough overview
+
+Ordinary walkthroughs have **Overview** and **Code cards** pages. The overview is a Markdown cheat sheet for the whole behavior: big picture, key concepts/mental model, a worked example, and important caveats. **Explore the code** links to each existing card; it is reading order, not an inferred call graph. Opening a walkthrough with an overview starts on that page. Existing walkthroughs without one still open their cards and offer an explicit **Write overview** / **Use cheat-sheet template** empty state. The selected page/card is local reading position, restored without saving walkthrough data.
+
+Use **Edit overview** to write Markdown and preview it. Text is stored exactly (up to 30,000 characters, never silently truncated), and empty text explicitly clears it. Source cards, explanations, notes, runs and Flow are not rewritten or reviewed by an overview-only save—even when source is unavailable. Drafts survive page/walkthrough navigation, review toggles and polling; revision conflicts or failed requests keep the draft. A later save acknowledgement cannot erase newer typing or a recreated editor. Drafts are in-memory only, not retained across a full reload. Markdown uses the same passive rendering/link policy as Notes; HTML and images do not execute/load. A source-card warning prompts an overview review but does not establish that unchanged overview prose is current.
+
+Agents create the page through optional `save_walkthrough.overview`, or edit only that page with `save_walkthrough_overview` using `walkthroughId`, `expectedRevision` and `overview`. Omitting the field on a card update preserves it. Read the actual tool schemas for current payloads; older services without the overview capability must be reloaded before overview writes. The `/codepath` skill and **Connect your agent** instructions request the cheat sheet in the first generation. Readback/human review establishes its usefulness; `validate_walkthrough` remains a structural card/Note/Variable check, not an overview quality/completeness checker. Legacy/manual guides may omit the page's authored text. Comparison walkthroughs retain their existing independent Before/After explanation layout.
+
+### Try the overview example
+
+After installing the updated VSIX and opening Codepath for this checkout (or its parent), run from the folder opened in VS Code:
+
+```bash
+node /absolute/path/to/codepath-prototype/scripts/create-overview-example.mjs
+```
+
+Alternatively pass the opened folder as the script's single argument. Select **Go function context · cheat sheet** in Codepath: it opens on an overview with **Mental model**, **Worked example**, and four links under **Explore the code**. Try **Invoke the callback**, then return to **Overview**. The script uses the connected authenticated tools, adds highlighted Notes and applicable Variables, and checks readiness with explicit no-variable reasons for the two constant-print cards. Reruns preserve an existing example rather than overwrite it. The source/overview text is in `examples/function-context/`; no application source is changed by the script. Failed generation is reported as potentially incomplete, not ready.
+
+Run `npm run test:overview` for the disposable actual-Chrome regression, including independent drafts, failed/conflicting saves, delayed acknowledgements, passive Markdown and narrow layouts. Screenshots default to `.cache/walkthrough-overview/`.
+
 ## Connect a coding agent
 
 Open Codepath in VS Code, or keep the browser server running for the project. Click **Connect your agent** in the UI for a config containing your actual local paths. The installed extension includes its own `agent.mjs`; a stdio MCP client still needs a Node.js 22+ executable to launch it.
@@ -210,6 +230,36 @@ The MCP server supports initialize, ping, tools/list and tools/call. It negotiat
 - list_runs, get_run, record_run
 
 For an existing walkthrough, read it and send its revision as expectedRevision when saving or deleting. Path edits, notes and new runs advance that revision. This prevents an outdated update or deletion from discarding newer agent/user work. A stale save cannot resurrect a deleted walkthrough. Notes attach to stable step IDs and the selected source fingerprint. Agents must obtain explicit user confirmation before calling the destructive `delete_walkthrough` tool.
+
+### `/codepath` skill
+
+The repo and VSIX include a portable Agent Skills folder at `skills/codepath/`. It tells your agent to use the real Codepath tools, read current source, create purposes plus highlighted Notes and Variables, preserve existing work, and validate the result. It also requires a concrete example card for you to verify. Install it once in each agent you use; installing the VS Code extension alone does not register commands in a separate AI client.
+
+Set `CODEPATH_DIR` to this checkout's root, or locate the installed extension:
+
+```bash
+CODEPATH_DIR="$(code --locate-extension codepath-local.codepath-prototype)"
+```
+
+For **Pi**, copy the skill and the `/codepath` prompt shortcut (inspect any existing copies before replacing them):
+
+```bash
+mkdir -p "$HOME/.pi/agent/skills" "$HOME/.pi/agent/prompts"
+cp -R "$CODEPATH_DIR/skills/codepath" "$HOME/.pi/agent/skills/"
+cp "$CODEPATH_DIR/prompts/codepath.md" "$HOME/.pi/agent/prompts/codepath.md"
+```
+
+Run `/reload` in Pi, then try:
+
+```text
+/codepath Map what happens when Server.Handle invokes its callback
+```
+
+Pi's native `/skill:codepath` command also works; the prompt shortcut supplies the shorter `/codepath` spelling and forwards your request. For a custom Pi configuration directory, replace `$HOME/.pi/agent` with that directory.
+
+For **Cursor**, copy `skills/codepath/` into your project's `.cursor/skills/` directory (or your user skills directory), then reload/start a new agent chat and invoke the skill there. Other Agent Skills-compatible clients can use the same folder in their documented skill location; their command syntax may differ. The skill is self-contained and contains no project paths or connection credentials. It uses connected MCP tools when available and the installed extension's Node CLI otherwise. Open **Codepath: Open Walkthroughs** for the target project first; use **Connect your agent** if the agent needs the actual connection paths.
+
+### One-off prompt
 
 Suggested prompt:
 

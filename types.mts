@@ -228,10 +228,19 @@ export interface FlowState {
     attachment: SourceAttachment;
   }[];
 }
+export const walkthroughOverviewLimit = 30_000;
+export function parseWalkthroughOverview(value: unknown): string {
+  if (typeof value !== "string" || value.length > walkthroughOverviewLimit)
+    throw Error(
+      "Walkthrough overview must be text, at most 30,000 characters."
+    );
+  return value;
+}
 export interface SavedWalkthrough {
   id: string;
   title: string;
   description: string;
+  overview?: string;
   steps: SavedStep[];
   revision: number;
   flow?: WalkthroughGraph;
@@ -509,10 +518,11 @@ export interface Overview {
     notePresentation: true;
     onDemandSource?: true;
     authoringValidation?: true;
+    walkthroughOverview?: true;
   };
   index: SourceOverview;
   focus: Focus | null;
-  paths: (Omit<SavedWalkthrough, "steps"> & { count: number })[];
+  paths: (Omit<SavedWalkthrough, "steps" | "overview"> & { count: number })[];
   runs: RunSummary[];
 }
 export type RunSummary = Omit<Run, "events"> & { count: number };
@@ -663,8 +673,14 @@ export interface ToolArgs {
     id?: string;
     title: string;
     description?: string;
+    overview?: string;
     steps: StepInput[];
     expectedRevision?: number;
+  };
+  save_walkthrough_overview: {
+    walkthroughId: string;
+    expectedRevision: number;
+    overview: string;
   };
   save_walkthrough_flow: {
     walkthroughId: string;
@@ -772,6 +788,7 @@ export interface ToolResults {
   validate_walkthrough: AuthoringReport;
   source_usages: SourceUsageBatch;
   save_walkthrough: Walkthrough;
+  save_walkthrough_overview: Walkthrough;
   save_walkthrough_flow: Walkthrough;
   delete_walkthrough: { id: string; deleted: boolean };
   add_note: Note;

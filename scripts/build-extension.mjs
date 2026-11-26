@@ -10,6 +10,7 @@ await build({
     "indexer.mts",
     "source-parser.mts",
     "source-functions.mts",
+    "go-function-scopes.mts",
     "source-project.mts",
     "references.mts",
     "source-usage.mts",

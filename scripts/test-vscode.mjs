@@ -10,6 +10,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 import {chromium} from 'playwright-core';
 import {callTool} from '../dist/client.mjs';
 import {verifyNativeAuthoring} from './native-authoring-check.mjs';
+import {verifyNativeOverview} from './native-overview-check.mjs';
 import {verifyMarkdown} from './markdown-check.mjs';
 import {verifyNativeGit} from './native-git-check.mjs';
 const base=fileURLToPath(new URL('../',import.meta.url));
@@ -117,6 +118,7 @@ try{
   const aliasWalk=await callTool(root,'get_walkthrough',{id:aliasWalkId});
   assert.equal(aliasWalk.steps[1].evidence,'source','Definition evidence stays in metadata, not a jargon badge.');
   assert.equal(await frame.locator('.code-card').nth(1).locator('.function-context').textContent(),'persist');
+  await verifyNativeOverview(frame,root,aliasWalkId);
   await verifyNativeAuthoring(frame,root,extensionPath,dir);
   await frame.locator('.code-card[data-step="calculate"]').waitFor({state:'detached'});
   await verifyMarkdown(frame,(name,args)=>callTool(root,name,args),undefined,async()=>{

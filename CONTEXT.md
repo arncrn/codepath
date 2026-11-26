@@ -55,6 +55,9 @@ The innermost lexical function containing a card's selected nonwhitespace curren
 **Flow**:
 An optional, explicitly authored source-bound behavioral explanation graph, independent of saved card order. Nodes link exact current source to stable card IDs; typed edges explain selected calls, decisions, joins, loops, recursion and unresolved connections. It is not an inferred exhaustive CFG, name-matched call graph or runtime trace. Changed bindings make Flow stale without pruning, rebinding or reviewing explanations.
 
+**Walkthrough overview**:
+An authored Markdown main page giving the walkthrough's big picture, key concepts, concrete examples and caveats before reading individual source cards. It is separate from the short description, card purposes, source-linked Notes/Variables and behavioral Flow. It is not inferred from titles, source-bound execution evidence or automatically re-reviewed when code changes. Existing walkthroughs may omit it.
+
 **Card explanation**:
 A concise explanation of the overall purpose of the code shown in a card.
 

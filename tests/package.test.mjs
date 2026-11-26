@@ -34,10 +34,14 @@ test("VSIX allowlist includes runtime assets, never demo caches or source metada
     ".codepaths/workspace.json",
     "ui.tsx",
     "workspace.mts",
+    "skills/codepath/private.json",
+    "prompts/unrelated.md",
   ];
   for (const file of [
     ...release.map((file) => "dist/" + file),
     ...unwanted,
+    "skills/codepath/SKILL.md",
+    "prompts/codepath.md",
     "README.md",
     "LICENSE",
   ]) {
@@ -52,6 +56,8 @@ test("VSIX allowlist includes runtime assets, never demo caches or source metada
     packageManager: PackageManager.None,
   });
   for (const file of release) assert.ok(files.includes("dist/" + file), file);
+  assert.ok(files.includes("skills/codepath/SKILL.md"));
+  assert.ok(files.includes("prompts/codepath.md"));
   for (const file of unwanted)
     assert.ok(!files.includes(file), file + " must not ship");
 });

@@ -151,7 +151,7 @@ test("Callbacks, methods, assigned and anonymous functions use source scopes, wh
   ]);
 });
 
-test("Go context distinguishes receiver methods and masks false functions, conservatively reporting unsupported anonymous and complex signatures", (t) => {
+test("Go context distinguishes receiver methods, callbacks and complex signatures while masking false functions", (t) => {
   const { workspace } = fixture(t, {
     "main.go":
       'package main\n// func fake() {}\nfunc same() {\n  println("func fake() {}")\n}\ntype Reader struct {}\nfunc (r *Reader) same() {\n  println(r)\n}\nvar top = 1\n',
@@ -173,12 +173,279 @@ test("Go context distinguishes receiver methods and masks false functions, conse
     ]
   );
   for (const file of ["callback.go", "generic.go", "interface.go"]) {
-    const unsupported = save(workspace, file, [[3]]);
-    assert.deepEqual(unsupported.steps[0].code.functionContext, {
-      status: "unknown",
-      reason: "unsupported or invalid source",
-    });
+    const current = save(workspace, file, [[3]]);
+    assert.equal(current.steps[0].code.functionContext.name, "run");
   }
+  const callback = save(workspace, "callback.go", [[4]]);
+  assert.equal(callback.steps[0].code.functionContext.name, "run › anonymous");
+});
+
+for (const { title, source, expected } of [
+  {
+    title:
+      "exported/unexported functions and pointer/value struct methods coexist with function types",
+    source: `package main
+type Server struct{}
+type Store[T any] struct{}
+type Hook func() error
+var hook func()
+var store Store[int]
+func Public() {
+  println(1) // card
+}
+func private() {
+  println(2) // card
+}
+func (s *Server) Public(hook func(int) error) {
+  println(3) // card
+}
+func (s Server) private() {
+  println(4) // card
+}
+func constructor() {
+  println(5) // card
+}
+`,
+    expected: [
+      "Public",
+      "private",
+      "Server.Public",
+      "Server.private",
+      "constructor",
+    ],
+  },
+  {
+    title:
+      "generic constraints and generic/unnamed receivers keep their struct owners",
+    source: `package main
+type Store[T any] struct { Value T }
+func Identity[T interface { ~int | ~string }](value T) T {
+  return value // card
+}
+func (s *Store[T]) Load() T {
+  return s.Value // card
+}
+func (Store[T]) hidden() {
+  println(1) // card
+}
+func (*Store[T]) Unnamed() {
+  println(2) // card
+}
+`,
+    expected: ["Identity", "Store.Load", "Store.hidden", "Store.Unnamed"],
+  },
+  {
+    title:
+      "signature braces and function result types never become function bodies",
+    source: `package main
+func Shape() struct { X int; Hook func() } {
+  return struct { X int; Hook func() }{} // card
+}
+func Contract() interface { Run(func() error) } {
+  return nil // card
+}
+func Factory() func() error {
+  println(1) // card
+  return func() error {
+    return nil // card
+  }
+}
+func Nested() func() func() {
+  println(2) // card
+  return nil
+}
+func Collections() map[string][]chan<- func() error {
+  return nil // card
+}
+func Channels() <-chan struct { X int } {
+  return nil // card
+}
+func Results() (value map[string]func(), err error) {
+  return nil, nil // card
+}
+func Builder() {
+  maker := func() func() {
+    return func() {
+      println(3) // card
+    }
+  }
+  _ = maker
+}
+`,
+    expected: [
+      "Shape",
+      "Contract",
+      "Factory",
+      "Factory › anonymous",
+      "Nested",
+      "Collections",
+      "Channels",
+      "Results",
+      "Builder › anonymous › anonymous",
+    ],
+  },
+  {
+    title:
+      "nested literals, goroutines and deferred callbacks retain the lexical outer function",
+    source: `package main
+func Run() {
+  callback := func() {
+    func() {
+      println(1) // card
+    }()
+  }
+  go func() {
+    println(2) // card
+  }()
+  defer func() {
+    println(3) // card
+  }()
+  callback() // card
+}
+`,
+    expected: [
+      "Run › anonymous › anonymous",
+      "Run › anonymous",
+      "Run › anonymous",
+      "Run",
+    ],
+  },
+  {
+    title:
+      "function types and bodyless declarations do not consume the following function",
+    source: `package main
+type Hook func() // card
+var hook func() error // card
+func External()
+type Bare func()
+func (Bare) Call() {
+  println(0) // card
+}
+func Actual() {
+  println(1) // card
+}
+var callbacks = []func(){ // card
+  func() {
+    println(2) // card
+  },
+}
+`,
+    expected: [
+      "no-function",
+      "no-function",
+      "Bare.Call",
+      "Actual",
+      "no-function",
+      "anonymous",
+    ],
+  },
+  {
+    title:
+      "collection function types are not callbacks, while sends and arithmetic can contain literals",
+    source: `package main
+var pointers = []*func(){nil} // card
+var nested = [1][2]*func(){{nil, nil}} // card
+var channels = map[string]<-chan func(){"one": nil} // card
+func Send(ch chan func(), values []int) {
+  ch <- func() {
+    println(1) // card
+  }
+  number := values[0] * func() int {
+    return 2 // card
+  }()
+  _ = number
+}
+`,
+    expected: [
+      "no-function",
+      "no-function",
+      "no-function",
+      "Send › anonymous",
+      "Send › anonymous",
+    ],
+  },
+  {
+    title:
+      "function types in switches and union constraints do not poison unrelated scopes",
+    source: `package main
+type Callbacks interface { ~func() | ~func() error }
+func Run(value any) {
+  var callback func()
+  println(1) // card
+  switch value.(type) {
+  case func():
+    println(2) // card
+  case func() error:
+    println(3) // card
+  }
+  _ = callback
+}
+`,
+    expected: ["Run", "Run", "Run"],
+  },
+  {
+    title:
+      "Unicode identifiers, multiline signatures, comments and raw strings preserve source positions",
+    source:
+      "package main\ntype 服务 struct{}\n// func fake() {}\nfunc (s *服务) 处理(\n  callback func(),\n) (result struct { X int }) {\n  println(`func fake() {}`) // card\n}\n",
+    expected: ["服务.处理"],
+  },
+]) {
+  test("Go " + title, (t) => {
+    const { workspace } = fixture(t, { "main.go": source });
+    const ranges = source
+      .split("\n")
+      .flatMap((line, i) => (line.includes("// card") ? [[i + 1]] : []));
+    const walk = save(workspace, "main.go", ranges);
+    assert.deepEqual(
+      walk.steps.map((step) => {
+        const context = step.code.functionContext;
+        return context.status === "function" ? context.name : context.status;
+      }),
+      expected
+    );
+  });
+}
+
+test("Malformed Go scopes stay unknown rather than assigning an arbitrary enclosing name", (t) => {
+  const { workspace } = fixture(t, {
+    "broken.go":
+      "package main\nfunc Run() {\n  callback := func() {\n    println(1)\n",
+  });
+  assert.equal(
+    save(workspace, "broken.go", [[4]]).steps[0].code.functionContext.status,
+    "unknown"
+  );
+});
+
+test("Go renames refresh context without reviewing explanations or writing reader state", (t) => {
+  const source =
+    "package main\nfunc (s *Server) Before(callback func()) {\n  println(1)\n}\n";
+  const { workspace, root } = fixture(t, { "main.go": source });
+  const walk = save(workspace, "main.go", [[3]]);
+  const disk = path.join(root, ".codepaths/workspace.json");
+  const saved = fs.readFileSync(disk, "utf8");
+  const mtime = fs.statSync(disk).mtimeMs;
+  fs.writeFileSync(
+    path.join(root, "main.go"),
+    source.replace("Before", "After")
+  );
+  const current = workspace.invoke("get_walkthrough", { id: walk.id });
+  assert.equal(current.steps[0].code.functionContext.name, "Server.After");
+  assert.equal(current.steps[0].snapshotHash, walk.steps[0].snapshotHash);
+  assert.equal(current.steps[0].stale, false);
+  assert.equal(fs.readFileSync(disk, "utf8"), saved);
+  assert.equal(fs.statSync(disk).mtimeMs, mtime);
+});
+
+test("A callback elsewhere in a Go file does not hide an ordinary function's name", (t) => {
+  const { workspace } = fixture(t, {
+    "main.go":
+      "package main\nfunc Public() {\n  println(1)\n}\nfunc private() {\n  call(func() {})\n}\n",
+  });
+  const walk = save(workspace, "main.go", [[3]]);
+  assert.equal(walk.steps[0].code.functionContext.status, "function");
+  assert.equal(walk.steps[0].code.functionContext.name, "Public");
 });
 
 test("Late source, eviction and file edits refresh context without reader writes, note loss or automatic review", (t) => {

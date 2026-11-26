@@ -1,4 +1,5 @@
 import type { ToolName } from "./types.mjs";
+import { walkthroughOverviewLimit } from "./types.mjs";
 import {
   authoringCompletionRule,
   reviewedNoteRule,
@@ -12,6 +13,7 @@ interface Schema {
   enum?: (string | null)[];
   minimum?: number;
   maxItems?: number;
+  maxLength?: number;
   additionalProperties?: boolean;
 }
 const str = (description: string): Schema => ({ type: "string", description });
@@ -561,14 +563,20 @@ export const tools = [
   ),
   define(
     "save_walkthrough",
-    "Create/update the ordered cards and their concise purposes; this does not create Notes, Variables or source highlights. Read source first; mark uncertain connections inferred. Updates need expectedRevision and preserve notes by stable step ID. " +
+    "Create/update the ordered cards and their concise purposes; this does not create Notes, Variables or source highlights. For generated walkthroughs also include a Markdown overview with the big picture, mental model and worked example; legacy/manual guides may omit it. Read source first; mark uncertain connections inferred. Updates need expectedRevision and preserve notes by stable step ID. " +
       reviewedNoteRule +
       " " +
       authoringCompletionRule,
     {
       id: str("Omit for new ID"),
       title: str("Behavior name"),
-      description: str("Situation and outcome"),
+      description: str("Short situation and outcome"),
+      overview: {
+        ...str(
+          "Markdown main page: big picture, key concepts, a concrete worked example and important caveats. Author from source, not card-title guesses. Omission preserves existing content; an empty string clears it."
+        ),
+        maxLength: walkthroughOverviewLimit,
+      },
       expectedRevision: { type: "integer" },
       steps: {
         type: "array",
@@ -601,6 +609,20 @@ export const tools = [
       },
     },
     ["title", "steps"],
+    false
+  ),
+  define(
+    "save_walkthrough_overview",
+    "Create or edit the ordinary walkthrough's Markdown main page/cheat sheet without rewriting cards, source references, Notes, Variables, runs or Flow. Explain the big picture, key concepts and a concrete example. Read get_walkthrough first and pass its revision; conflicts reject without dropping the draft. Empty text explicitly clears. Text is authored, not automatically source-reviewed or execution evidence.",
+    {
+      walkthroughId: str("Walkthrough ID"),
+      expectedRevision: { type: "integer", minimum: 1 },
+      overview: {
+        ...str("Exact Markdown overview text, including headings and examples"),
+        maxLength: walkthroughOverviewLimit,
+      },
+    },
+    ["walkthroughId", "expectedRevision", "overview"],
     false
   ),
   define(

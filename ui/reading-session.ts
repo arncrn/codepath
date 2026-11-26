@@ -33,8 +33,9 @@ export function useReadingSession(options: ReadingEffects) {
     [walkthrough, setWalkthrough] = useState<Walkthrough | null>(null),
     [selectedStepId, setSelected] = useState<string | null>(null);
   const [tab, setTab] = useState<ReadingContext["tab"]>("notes");
-  const view = useRef({ overview, walkthrough, selectedStepId });
-  view.current = { overview, walkthrough, selectedStepId };
+  const [page, setPage] = useState<"overview" | "cards">("cards");
+  const view = useRef({ overview, walkthrough, selectedStepId, page });
+  view.current = { overview, walkthrough, selectedStepId, page };
   const latestViewRequestNumber = useRef(0),
     workspaceSignature = useRef(""),
     consumedFocusNonce = useRef<string | null>(null),
@@ -51,6 +52,7 @@ export function useReadingSession(options: ReadingEffects) {
     setWalkthrough(value);
   }
   function clearWalkthrough() {
+    setPage("cards");
     acceptSavedWalkthrough(null);
     setSelected(null);
     effects.current.clearSource();
@@ -58,6 +60,7 @@ export function useReadingSession(options: ReadingEffects) {
     effects.current.resetDraft();
   }
   function selectStep(id: string, scroll = true) {
+    setPage("cards");
     effects.current.clearFlowSource();
     effects.current.switchDraftScope(
       view.current.walkthrough
@@ -91,6 +94,8 @@ export function useReadingSession(options: ReadingEffects) {
     if (!loadedWalkthrough || !current()) return;
     const isDifferentWalkthrough = previousWalkthrough?.id !== walkthroughId;
     acceptSavedWalkthrough(loadedWalkthrough);
+    if (isDifferentWalkthrough)
+      setPage(loadedWalkthrough.overview?.trim() ? "overview" : "cards");
     if (
       requestedStepId &&
       loadedWalkthrough.steps.some((step) => step.id === requestedStepId)
@@ -180,6 +185,11 @@ export function useReadingSession(options: ReadingEffects) {
           refreshedOverview,
           current
         );
+        if (
+          current() &&
+          view.current.walkthrough?.id === savedReadingContext.walkthroughId
+        )
+          setPage(savedReadingContext.page ?? "cards");
       } else if (!view.current.walkthrough && refreshedOverview.paths.length) {
         await openWalkthrough(
           refreshedOverview.paths.find(
@@ -243,8 +253,9 @@ export function useReadingSession(options: ReadingEffects) {
       stepId: selectedStepId,
       tab,
       focusNonce: consumedFocusNonce.current,
+      ...(page === "overview" ? { page } : {}),
     });
-  }, [contextReady, walkthrough, selectedStepId, tab]);
+  }, [contextReady, walkthrough, selectedStepId, tab, page]);
   useEffect(() => {
     modalOpen.current = options.dialogOpen;
   }, [options.dialogOpen]);
@@ -252,6 +263,7 @@ export function useReadingSession(options: ReadingEffects) {
     const key = (event: KeyboardEvent) => {
       if (
         modalOpen.current ||
+        view.current.page === "overview" ||
         ["INPUT", "TEXTAREA", "SELECT"].includes(
           event.target instanceof Element ? event.target.tagName : ""
         ) ||
@@ -300,6 +312,11 @@ export function useReadingSession(options: ReadingEffects) {
     currentStep,
     position,
     tab,
+    page,
+    changePage: (page: "overview" | "cards") => {
+      effects.current.closeSourceMenu();
+      setPage(page);
+    },
     currentWalkthrough: () => view.current.walkthrough,
     acceptSavedWalkthrough,
     acceptOverview,
@@ -309,6 +326,7 @@ export function useReadingSession(options: ReadingEffects) {
     selectFlowCard: (focus: FlowSourceFocus) => {
       const walk = view.current.walkthrough;
       if (!walk || !currentFlowSource(walk, focus)) return;
+      setPage("cards");
       effects.current.switchDraftScope(
         JSON.stringify([walk.id, focus.node.stepId])
       );

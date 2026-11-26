@@ -4,6 +4,7 @@ export interface ReadingContext {
   walkthroughId: string | null;
   stepId: string | null;
   tab: "notes" | "variables" | "flow";
+  page?: "overview" | "cards";
   focusNonce: string | null;
 }
 export function parseReadingContext(value: unknown): ReadingContext | null {
@@ -16,6 +17,7 @@ export function parseReadingContext(value: unknown): ReadingContext | null {
     !id(v.walkthroughId) ||
     !id(v.stepId) ||
     !id(v.focusNonce) ||
+    (v.page !== undefined && v.page !== "overview" && v.page !== "cards") ||
     (v.tab !== "data" &&
       v.tab !== "notes" &&
       v.tab !== "variables" &&
@@ -28,6 +30,7 @@ export function parseReadingContext(value: unknown): ReadingContext | null {
     stepId: v.stepId,
     tab: v.tab === "data" ? "notes" : v.tab,
     focusNonce: v.focusNonce,
+    ...(v.page === undefined ? {} : { page: v.page }),
   };
 }
 export const readingContextKey = (root: string) =>

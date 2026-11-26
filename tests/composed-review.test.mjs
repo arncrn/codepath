@@ -57,6 +57,70 @@ test("Composed Git cards project each historical side's selected lexical owner w
   );
 });
 
+test("Go comparison cards resolve generic methods and callbacks from each historical side, not the live file", async (t) => {
+  const f = await gitProject(t);
+  const source =
+    "package main\ntype Store[T any] struct{}\nfunc (s *Store[T]) Before(callback func()) {\n  callback()\n  func() {\n    println(1)\n  }()\n}\n";
+  f.write("store.go", source);
+  f.git("add", "--", "store.go");
+  f.git("commit", "--quiet", "-m", "Go scopes before");
+  f.write("store.go", source.replace("Before", "After"));
+  f.git("add", "--", "store.go");
+  f.write("store.go", source.replace("Before", "Live"));
+  const list = await allChanges(f.service);
+  const file = list.files.find(
+    (file) => file.file === "store.go" && file.group === "staged"
+  );
+  const view = await f.service.call("get_git_file", {
+    listId: list.listId,
+    fileId: file.id,
+  });
+  const side = (line) => ({
+    title: "Not a function name",
+    purpose: "Authored purpose",
+    startLine: line,
+    endLine: line,
+    notes: [],
+    variables: [],
+    notApplicable: {
+      notes: "No block note needed in this fixture.",
+      variables: "No variable explanation needed in this fixture.",
+    },
+  });
+  const saved = await f.service.call("create_comparison_walkthrough", {
+    title: "Go historical scopes",
+    listId: list.listId,
+    steps: [4, 6].map((line) => ({
+      id: "line-" + line,
+      title: "Historical context",
+      fileId: file.id,
+      binding: view.binding,
+      before: side(line),
+      after: side(line),
+    })),
+  });
+  assert.deepEqual(
+    saved.steps.map((step) => [
+      step.before.code.functionContext.name,
+      step.after.code.functionContext.name,
+    ]),
+    [
+      ["Store.Before", "Store.After"],
+      ["Store.Before › anonymous", "Store.After › anonymous"],
+    ]
+  );
+  await f.reopen();
+  const revision = (await f.service.call("project_overview", {})).revision;
+  assert.deepEqual(
+    await f.service.call("get_comparison_walkthrough", { id: saved.id }),
+    saved
+  );
+  assert.equal(
+    (await f.service.call("project_overview", {})).revision,
+    revision
+  );
+});
+
 test("Empty and unsupported historical sides keep honest context rather than guessing from source-looking text", async (t) => {
   const f = await gitProject(t);
   const samples = [
@@ -74,8 +138,8 @@ test("Empty and unsupported historical sides keep honest context rather than gue
       "unsupported or invalid source",
     ],
     [
-      "callback.go",
-      "package main\nfunc outer() {\n  fn := func() {\n    println(1)\n  }\n  fn()\n}\n",
+      "broken.go",
+      "package main\nfunc outer() {\n  fn := func() {\n    println(1)\n",
       4,
       "unsupported or invalid source",
     ],

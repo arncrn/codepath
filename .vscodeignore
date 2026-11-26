@@ -3,6 +3,8 @@
 **/*
 !dist/extension.cjs
 !dist/{ui.html,ui.js,style.css,vscode.css,agent.mjs,client.mjs,tools.mjs,types.mjs}
+!skills/codepath/SKILL.md
+!prompts/codepath.md
 !package.json
 !README.md
 !LICENSE

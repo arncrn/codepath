@@ -55,7 +55,11 @@ import type {
   AdmittedGitFile,
   WalkthroughComparisonNoteInput,
 } from "./types.mjs";
-import { errorMessage, parseCallbackRole } from "./types.mjs";
+import {
+  errorMessage,
+  parseCallbackRole,
+  parseWalkthroughOverview,
+} from "./types.mjs";
 import {
   applyAnnotationOperation,
   hydrateAttachments,
@@ -78,6 +82,7 @@ type Input = Partial<{
   column: number;
   title: string;
   description: string;
+  overview: string;
   steps: StepInput[];
   expectedRevision: number;
   walkthroughId: string;
@@ -114,6 +119,8 @@ export function openWorkspace(root: string) {
   validateComparisonWalkthroughs(state.comparisonWalkthroughs);
   validateGitViewed(state.gitViewed);
   for (const walkthrough of state.paths) {
+    if (walkthrough.overview !== undefined)
+      parseWalkthroughOverview(walkthrough.overview);
     if (walkthrough.flow !== undefined) parseWalkthroughFlow(walkthrough.flow);
     for (const step of walkthrough.steps) parseCallbackRole(step.callbackRole);
   }
@@ -178,6 +185,7 @@ export function openWorkspace(root: string) {
         notePresentation: true,
         onDemandSource: true,
         authoringValidation: true,
+        walkthroughOverview: true,
       },
       index: {
         ...sources.snapshot(walkthroughId !== undefined),
@@ -187,10 +195,10 @@ export function openWorkspace(root: string) {
         ],
       },
       focus: state.focus,
-      paths: state.paths.map(({ steps, ...p }) => ({
-        ...p,
-        count: steps.length,
-      })),
+      paths: state.paths.map(({ steps, ...p }) => {
+        delete p.overview; // The main document belongs to get_walkthrough, not every poll summary.
+        return { ...p, count: steps.length };
+      }),
       runs: state.runs.map(({ events, ...r }) => ({
         ...r,
         count: events.length,
@@ -532,6 +540,30 @@ export function openWorkspace(root: string) {
       return buildSourceUsageIndex(root, index, state.paths).forWalkthrough(
         a.walkthroughId
       );
+    if (name === "save_walkthrough_overview") {
+      const original = get(a.walkthroughId);
+      need(
+        a.expectedRevision === original.revision,
+        "Walkthrough changed. Read it again before saving the overview."
+      );
+      const updated = {
+        ...original,
+        overview: parseWalkthroughOverview(a.overview),
+        revision: original.revision + 1,
+      };
+      const before = state;
+      state = {
+        ...state,
+        paths: state.paths.map((p) => (p.id === original.id ? updated : p)),
+      };
+      try {
+        save();
+      } catch (error) {
+        state = before;
+        throw error;
+      }
+      return hydrate(updated);
+    }
     if (name === "save_walkthrough_flow") {
       const original = get(a.walkthroughId);
       need(
@@ -677,6 +709,9 @@ export function openWorkspace(root: string) {
         id,
         title: text(a.title, 200),
         description: String(a.description ?? "").slice(0, 10000),
+        ...(a.overview === undefined
+          ? {}
+          : { overview: parseWalkthroughOverview(a.overview) }),
         steps,
         revision: (old?.revision ?? 0) + 1,
       };

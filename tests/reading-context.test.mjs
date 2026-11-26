@@ -44,6 +44,35 @@ test("Reading context accepts only bounded position fields and survives absent/m
   );
   assert.notEqual(readingContextKey("/a"), readingContextKey("/b"));
 });
+test("Overview page reading position is optional, bounded and supported by the native bridge without carrying drafts", async () => {
+  const withPage = { ...position, page: "overview" };
+  assert.deepEqual(parseReadingContext(withPage), withPage);
+  assert.equal(parseReadingContext({ ...position, page: "arbitrary" }), null);
+  const values = new Map();
+  const state = {
+    get: (key) => values.get(key),
+    update: async (key, value) => {
+      values.set(key, value);
+    },
+  };
+  await dispatchReadingContext(
+    state,
+    "/overview",
+    "reading-context/set",
+    withPage
+  );
+  assert.deepEqual(
+    await dispatchReadingContext(state, "/overview", "reading-context/get"),
+    withPage
+  );
+  await assert.rejects(
+    dispatchReadingContext(state, "/overview", "reading-context/set", {
+      ...withPage,
+      overview: "must not persist document text here",
+    }),
+    /Invalid/
+  );
+});
 test("Legacy Data reading positions restore Notes while retaining the exact walkthrough/step/focus", () => {
   const legacy = { ...position, tab: "data" };
   assert.deepEqual(parseReadingContext(legacy), position);

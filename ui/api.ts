@@ -80,8 +80,27 @@ export function deleteComparisonNote(
 export function getWalkthrough(walkthroughId: string) {
   return invokeWorkspaceTool("get_walkthrough", { id: walkthroughId });
 }
-export function saveWalkthrough(walkthrough: ToolArgs["save_walkthrough"]) {
+async function checkOverviewSupport() {
+  const overview = await getProjectOverview();
+  if (
+    overview.root !== config.root ||
+    overview.capabilities?.walkthroughOverview !== true
+  )
+    throw Error(
+      "Reload VS Code, then reopen Codepath to save walkthrough overviews. Your draft is kept."
+    );
+}
+export async function saveWalkthrough(
+  walkthrough: ToolArgs["save_walkthrough"]
+) {
+  if (walkthrough.overview !== undefined) await checkOverviewSupport();
   return invokeWorkspaceTool("save_walkthrough", walkthrough);
+}
+export async function saveWalkthroughOverview(
+  input: ToolArgs["save_walkthrough_overview"]
+) {
+  await checkOverviewSupport();
+  return invokeWorkspaceTool("save_walkthrough_overview", input);
 }
 export function saveWalkthroughFlow(flow: ToolArgs["save_walkthrough_flow"]) {
   return invokeWorkspaceTool("save_walkthrough_flow", flow);

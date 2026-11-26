@@ -15,6 +15,7 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
     capability,
     sourceCapability,
     authoringCapability,
+    overviewCapability,
     reportedRoot = fs.realpathSync(root);
   const server = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
@@ -30,6 +31,7 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
                   notePresentation: capability,
                   onDemandSource: sourceCapability,
                   authoringValidation: authoringCapability,
+                  walkthroughOverview: overviewCapability,
                 },
               }),
         })
@@ -84,6 +86,13 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
       /No readiness result was reported/
     );
   authoringCapability = true;
+  for (overviewCapability of [undefined, false, "true"])
+    for (const name of ["save_walkthrough_overview", "save_walkthrough"])
+      await assert.rejects(
+        callTool(root, name, { overview: "## Must not silently disappear" }),
+        /No overview update was sent/
+      );
+  overviewCapability = true;
   reportedRoot = "/different-project";
   await assert.rejects(
     callTool(root, "validate_walkthrough", {
@@ -99,6 +108,12 @@ test("CLI/MCP transport refuses unsupported source queries and presentation writ
   await assert.rejects(
     callTool(root, "review_note", { archived: true }),
     /No note update was sent/
+  );
+  await assert.rejects(
+    callTool(root, "save_walkthrough_overview", {
+      overview: "Foreign project",
+    }),
+    /No overview update was sent/
   );
   assert.equal(posts, 0);
 });

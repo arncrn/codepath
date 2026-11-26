@@ -88,16 +88,25 @@ export async function dispatchReadingContext(
     if (!value || typeof value !== "object" || Array.isArray(value))
       return null;
     const v = value as Record<string, unknown>;
-    const fields = ["version", "walkthroughId", "stepId", "tab", "focusNonce"];
+    const fields = [
+      "version",
+      "walkthroughId",
+      "stepId",
+      "tab",
+      "focusNonce",
+      "page",
+    ];
     const id = (s: unknown) =>
       s === null || (typeof s === "string" && s.length > 0 && s.length <= 200);
     if (
-      Object.keys(v).length !== fields.length ||
+      Object.keys(v).length < fields.length - 1 ||
+      Object.keys(v).length > fields.length ||
       Object.keys(v).some((k) => !fields.includes(k)) ||
       v.version !== 1 ||
       !id(v.walkthroughId) ||
       !id(v.stepId) ||
       !id(v.focusNonce) ||
+      (v.page !== undefined && v.page !== "overview" && v.page !== "cards") ||
       (v.tab !== "data" &&
         v.tab !== "notes" &&
         v.tab !== "variables" &&
@@ -110,6 +119,7 @@ export async function dispatchReadingContext(
       stepId: v.stepId,
       tab: v.tab === "data" ? "notes" : v.tab,
       focusNonce: v.focusNonce,
+      ...(v.page === undefined ? {} : { page: v.page }),
     };
   };
   if (route === "reading-context/get" && body === undefined)

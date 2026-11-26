@@ -75,6 +75,8 @@ export function PathHeader({
   openDemo,
   addStep,
   deletePath,
+  pages,
+  showSteps = true,
   fail,
 }: {
   overview: Overview | null;
@@ -85,6 +87,8 @@ export function PathHeader({
   openDemo: () => void;
   addStep: () => void;
   deletePath: () => void;
+  pages?: ReactNode;
+  showSteps?: boolean;
   fail: (error: unknown) => void;
 }) {
   return (
@@ -129,7 +133,13 @@ export function PathHeader({
           </button>
         </div>
       </section>
-      <div id="steps" className="steps" aria-label="Path steps">
+      {pages}
+      <div
+        id="steps"
+        className="steps"
+        aria-label="Path steps"
+        hidden={!showSteps}
+      >
         {walkthrough?.steps.map((step, position) => (
           <Fragment key={step.id}>
             <button

@@ -37,6 +37,14 @@ fs.writeFileSync(
   path.join(root, "callback.go"),
   "package main\nfunc run() {\n  callback := func() {\n    println(1)\n  }\n  callback()\n}\n"
 );
+fs.writeFileSync(
+  path.join(root, "broken.go"),
+  "package main\nfunc run() {\n  callback := func() {\n    println(1)\n"
+);
+fs.writeFileSync(
+  path.join(root, "generic.go"),
+  "package main\ntype Store[T any] struct{ Value T }\nfunc (s *Store[T]) Load() T {\n  return s.Value\n}\n"
+);
 let service, browser;
 try {
   service = await startProjectService(root, {
@@ -54,7 +62,10 @@ try {
       ["siblings", "flow.tsx", 3, 11],
       ["top", "flow.tsx", 14, 14],
       ["go", "main.go", 3, 3],
-      ["unsupported", "callback.go", 4, 4],
+      ["go-callback", "callback.go", 4, 4],
+      ["go-outer", "callback.go", 6, 6],
+      ["go-generic", "generic.go", 4, 4],
+      ["unsupported", "broken.go", 4, 4],
     ].map(([id, file, startLine, endLine]) => ({
       id,
       title: "Purpose is not a function name",
@@ -121,6 +132,9 @@ try {
     siblings: "Multiple functions",
     top: "No enclosing function",
     go: "Reader.Read",
+    "go-callback": "run › anonymous",
+    "go-outer": "run",
+    "go-generic": "Store.Load",
     unsupported: "Unknown function",
   };
   for (const [id, text] of Object.entries(expected)) {

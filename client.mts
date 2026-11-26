@@ -32,7 +32,19 @@ export async function callTool<N extends ToolName>(
     "resolve_reference",
   ].includes(name);
   const validationRequest = name === "validate_walkthrough";
-  if (presentationRequest || sourceRequest || validationRequest) {
+  const overviewRequest =
+    name === "save_walkthrough_overview" ||
+    (name === "save_walkthrough" &&
+      args &&
+      typeof args === "object" &&
+      "overview" in args &&
+      args.overview !== undefined);
+  if (
+    presentationRequest ||
+    sourceRequest ||
+    validationRequest ||
+    overviewRequest
+  ) {
     const response = await fetch("http://127.0.0.1:" + c.port + "/api/state", {
       headers: { "X-Codepath-Token": c.token },
       signal: AbortSignal.timeout(15000),
@@ -47,21 +59,26 @@ export async function callTool<N extends ToolName>(
       !("capabilities" in overview) ||
       !overview.capabilities ||
       typeof overview.capabilities !== "object" ||
-      (validationRequest
-        ? !("authoringValidation" in overview.capabilities) ||
-          overview.capabilities.authoringValidation !== true
-        : sourceRequest
-          ? !("onDemandSource" in overview.capabilities) ||
-            overview.capabilities.onDemandSource !== true
-          : !("notePresentation" in overview.capabilities) ||
-            overview.capabilities.notePresentation !== true)
+      (overviewRequest
+        ? !("walkthroughOverview" in overview.capabilities) ||
+          overview.capabilities.walkthroughOverview !== true
+        : validationRequest
+          ? !("authoringValidation" in overview.capabilities) ||
+            overview.capabilities.authoringValidation !== true
+          : sourceRequest
+            ? !("onDemandSource" in overview.capabilities) ||
+              overview.capabilities.onDemandSource !== true
+            : !("notePresentation" in overview.capabilities) ||
+              overview.capabilities.notePresentation !== true)
     )
       throw Error(
-        validationRequest
-          ? "Reload VS Code, then reopen Codepath to validate generated walkthroughs. No readiness result was reported."
-          : sourceRequest
-            ? "Reload VS Code, then reopen Codepath to use on-demand source indexing. No source request was sent."
-            : "Reload VS Code, then reopen Codepath to save variable explanations or archived notes. No note update was sent."
+        overviewRequest
+          ? "Reload VS Code, then reopen Codepath to save walkthrough overviews. No overview update was sent."
+          : validationRequest
+            ? "Reload VS Code, then reopen Codepath to validate generated walkthroughs. No readiness result was reported."
+            : sourceRequest
+              ? "Reload VS Code, then reopen Codepath to use on-demand source indexing. No source request was sent."
+              : "Reload VS Code, then reopen Codepath to save variable explanations or archived notes. No note update was sent."
       );
   }
   const r = await fetch("http://127.0.0.1:" + c.port + "/api/call", {

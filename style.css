@@ -69,7 +69,37 @@
 .function-context { padding: 0 15px 8px; font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; font-weight: 600; line-height: 1.5; color: inherit; user-select: none; }
 /* Authored comparison walkthroughs: B keeps two semantic whole columns,
    shared row tracks align starts without a shared pair-card wrapper. */
-.walkthrough-surface { display: contents; }
+.walkthrough-surface, #walkthrough-cards { display: contents; }
+.walkthrough-pages { display: flex; gap: 20px; margin: 0 30px 16px; border-bottom: 1px solid var(--vscode-panel-border, #d5e3da); }
+.walkthrough-pages button { padding: 10px 2px; border-bottom: 2px solid transparent; font-weight: 600; }
+.walkthrough-pages button[aria-pressed="true"] { border-bottom-color: var(--vscode-focusBorder, #1b7660); color: var(--vscode-textLink-foreground, #1b7660); }
+#walkthrough-overview { margin: 0 30px 26px; color: var(--vscode-foreground, #1d343f); min-width: 0; }
+.overview-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.overview-heading h2 { font-size: 21px; }
+.overview-heading p, .overview-map > p, .overview-help { font-size: 12px; line-height: 1.7; margin: 8px 0; }
+.overview-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.overview-actions small { font-size: 10px; }
+.overview-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 260px); align-items: start; gap: 24px; }
+.overview-document { min-width: 0; border: 1px solid var(--vscode-panel-border, #d5e3da); border-radius: 9px; background: var(--vscode-editor-background, #fff); padding: 24px; }
+.overview-document .markdown-body { font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; max-width: 76ch; }
+.overview-document .markdown-body p { margin: 10px 0; }
+.overview-document .markdown-body > :first-child { margin-top: 0; }
+.overview-document textarea { display: block; width: 100%; min-height: 340px; margin: 12px 0; font-family: var(--vscode-editor-font-family, monospace); font-size: 12px; line-height: 1.7; }
+.overview-warning { padding: 12px; border: 1px solid var(--vscode-inputValidation-warningBorder, #d7bd7e); border-radius: 6px; background: var(--vscode-inputValidation-warningBackground, #fcf6e8); font-size: 12px; line-height: 1.7; margin: 12px 0; overflow-wrap: anywhere; }
+.overview-preview { margin-top: 20px; }
+.overview-preview summary { cursor: pointer; margin-bottom: 12px; }
+.overview-empty { font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.overview-empty p { margin: 14px 0; }
+.overview-map { min-width: 0; }
+.overview-map h3 { font-size: 14px; }
+.overview-map ol { list-style: none; margin: 16px 0 0; padding: 0; }
+.overview-map li { border-top: 1px solid var(--vscode-panel-border, #d5e3da); }
+.overview-map button { width: 100%; text-align: left; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 5px 8px; padding: 13px 4px; overflow-wrap: anywhere; }
+.overview-map button > span { grid-row: span 2; font: 11px monospace; padding-top: 2px; }
+.overview-map button > strong { font-size: 12px; }
+.overview-map button > small { font-size: 10px; line-height: 1.6; }
+@media (max-width: 1000px) { .overview-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) { #walkthrough-overview { margin: 0 20px 20px; } .walkthrough-pages { margin: 0 20px 16px; } .overview-document { padding: 16px; } }
 .review-entry { padding: 8px 24px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; flex-shrink: 0; }
 #git-comparisons { padding: 12px 24px 40px; overflow: auto; min-height: 0; flex: 1; }
 .comparison-heading { display: flex; justify-content: space-between; align-items: start; gap: 24px; margin: 10px 0 22px; }
